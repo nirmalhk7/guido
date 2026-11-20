@@ -1,0 +1,8 @@
+models:
+  - provider: openai
+    model: gpt-5-mini
+
+integrations:
+  - name: nirmalhk7~guido-browserbase-gated
+    version: 1.0.0
+    tools: [guido_browserbase_gated_start_rental_search, guido_browserbase_gated_get_rental_search]

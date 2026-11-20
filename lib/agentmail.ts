@@ -5,6 +5,8 @@ export interface MessageSummary {
   timestamp: string;
   labels: string[];
   preview?: string;
+  headers?: Record<string, string>;
+  authentication_results?: { dmarc?: string; dmarc_domain?: string };
 }
 
 export interface MessagePage {

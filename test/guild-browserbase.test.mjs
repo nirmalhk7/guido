@@ -3,6 +3,14 @@ import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { z } from "zod";
 
+test("Guido's email agent exposes only the rental search tools", () => {
+  const recipe = readFileSync(new URL("../guild/email/guild.yaml", import.meta.url), "utf8");
+  const integrations = [...recipe.matchAll(/^  - name: (.+)$/gm)].map((match) => match[1]);
+  const tools = [...recipe.matchAll(/^    tools: \[(.*)\]$/gm)].flatMap((match) => match[1].split(",").map((tool) => tool.trim()));
+  assert.deepEqual(integrations, ["nirmalhk7~guido-browserbase-gated"]);
+  assert.deepEqual(tools, ["guido_browserbase_gated_start_rental_search", "guido_browserbase_gated_get_rental_search"]);
+});
+
 test("Guild can start a scoped Browserbase rental search and retrieve the same run", () => {
   const contract = new URL("../guild/browserbase/openapi.json", import.meta.url);
   assert.ok(existsSync(contract), "Guido needs the Browserbase Agents API contract");
