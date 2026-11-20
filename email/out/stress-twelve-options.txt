@@ -1,0 +1,78 @@
+Subject: Guido found a car for your Dallas trip: PLACEHOLDER Rental Co A, $413.20
+
+Guido
+
+Found 12 options for your Dallas trip, Nov 25–29.
+Here's what I recommend and why. Nothing is booked until you say so.
+
+Note: These are made-up sample prices for this demo. They are not real quotes.
+
+YOUR TRIP
+Dates: Wed, Nov 25, 6:00 PM → Sun, Nov 29, 12:00 PM
+Travelers: 4 travelers
+Drivers: 2 drivers, ages 34, 23 · Young driver fee applies
+Car size: Midsize SUV
+Branch distance: Up to 30 min to the branch
+Drop-off: Return to the same place
+Ranked by lowest total cost
+
+[Recommended] PLACEHOLDER Rental Co A: $413.20 total for your trip
+Midsize SUV · 5 seats
+Pick up and return: PLACEHOLDER Love Field neighborhood branch
+PLACEHOLDER Renting near Love Field skips airport fees and saves about $67 compared with the usual DFW airport…
+Lowest total cost · No airport fees · Unlimited miles
+15 min to get there · PLACEHOLDER Rideshare from Love Field, about 15 min
+Free cancellation until Tue, Nov 24, 6:00 PM
+OctoTrip · checked Fri, Nov 20, 1:40 PM
+
+Review and book: {{confirm_url}}
+Opens a summary for you to check. Nothing is booked or paid until you confirm on the rental company's site.
+
+ALSO GOOD OPTIONS
+
+[Also a good option] PLACEHOLDER Rental Co B: $415.16 total for your trip
+Midsize SUV · 5 seats
+Pick up and return: PLACEHOLDER DFW Airport rental car center
+PLACEHOLDER Only about $2 more than the recommended car, with the closest pickup and the most flexible cancellation.
+Closest pickup · Most flexible cancellation · Free shuttle · Unlimited miles
+10 min to get there · PLACEHOLDER Free airport shuttle
+Free cancellation up to pickup
+OctoTrip · checked Fri, Nov 20, 1:40 PM
+
+[Also a good option] PLACEHOLDER Rental Co H: $425.70 total for your trip
+Midsize SUV · 5 seats
+Pick up and return: PLACEHOLDER Love Field neighborhood branch
+PLACEHOLDER Lowest total for your trip, even after the young-driver fee and a short rideshare to the branch.
+Lowest total cost · No airport fees · Unlimited miles
+15 min to get there · PLACEHOLDER Rideshare from Love Field, about 15 min
+Free cancellation until Tue, Nov 24, 6:00 PM
+OctoTrip · checked Fri, Nov 20, 1:40 PM
+
+[Also a good option] PLACEHOLDER Rental Co I: $440.16 total for your trip
+Midsize SUV · 5 seats
+Pick up and return: PLACEHOLDER DFW Airport rental car center
+PLACEHOLDER Only about $2 more than the recommended car, with the closest pickup and the most flexible cancellation.
+Closest pickup · Most flexible cancellation · Free shuttle · Unlimited miles
+10 min to get there · PLACEHOLDER Free airport shuttle
+Free cancellation up to pickup
+OctoTrip · checked Fri, Nov 20, 1:40 PM
+
+4 more options didn't fit your trip. See why on the results page.
+See all 16 options: {{audit_url}}
+
+5 of 6 rental companies answered
+Didn't respond in time: PLACEHOLDER Rental Co F
+Couldn't check doesn't mean no cars. It means I couldn't get an answer.
+
+Want different dates or details? Just reply to this email and I'll search again.
+You can also write to {{reply_to_address}}.
+
+Where these prices came from:
+Sources: OctoTrip and prices saved earlier. Oldest price checked Fri, Nov 20, 1:15 PM.
+These are sample prices for a demo, not real quotes.
+Some prices were saved earlier and may have changed since.
+
+--
+Guido never books or pays for you. When you're ready, you confirm on the rental company's own checkout.
+I never see or store your card details.
+You're getting this because you asked Guido to find you a rental car.

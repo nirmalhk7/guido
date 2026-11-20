@@ -1,0 +1,103 @@
+{
+  "_title": "0 options, no coverage info",
+  "result": {
+    "schema_version": "0.2.0",
+    "currency": "USD",
+    "money_unit": "cents",
+    "placeholder_notice": "PLACEHOLDER: This is sample data for designing and testing only (environment: fixture). Company names, branch names, prices, fees, cancellation terms, policies, times, driver ages and timestamps are all made up. Source names and the fallback story show how a real run could look; no source was actually called. The trip itself is just the demo default; the contract works for any trip.",
+    "data_source": {
+      "data_source": "octotrip_mcp",
+      "captured_at": null,
+      "environment": "unavailable"
+    },
+    "coverage": {
+      "source_attempts": [],
+      "providers": []
+    },
+    "trip_request": {
+      "start_area": "Dallas, TX",
+      "airports": [
+        "DFW",
+        "DAL"
+      ],
+      "end_area": "Dallas, TX",
+      "pickup_datetime": "2026-11-25T18:00:00-06:00",
+      "return_datetime": "2026-11-29T12:00:00-06:00",
+      "days": 4,
+      "travelers": 4,
+      "drivers": [
+        {
+          "age": 34
+        },
+        {
+          "age": 23
+        }
+      ],
+      "car_class": "midsize_suv",
+      "one_way_ok": false,
+      "max_travel_minutes_to_branch": 30,
+      "ranking_priority": "lowest_total_cost"
+    },
+    "options": [],
+    "winner_summary": null,
+    "audit_trail": [
+      {
+        "step_number": 1,
+        "step_name": "Read your trip",
+        "plain_language_finding": "PLACEHOLDER 4 travelers, 2 drivers (one under 25), Wed Nov 25 to Sun Nov 29, return to the same place, near DFW or Love Field. What matters most to you: lowest total cost.",
+        "timestamp": "2026-11-20T13:40:00-08:00",
+        "step_type": "request"
+      },
+      {
+        "step_number": 2,
+        "step_name": "Searched for cars",
+        "plain_language_finding": "PLACEHOLDER Asked OctoTrip for cars from 6 rental companies near DFW and Love Field.",
+        "timestamp": "2026-11-20T13:40:02-08:00",
+        "step_type": "search"
+      },
+      {
+        "step_number": 3,
+        "step_name": "Checked who answered",
+        "plain_language_finding": "PLACEHOLDER 5 of 6 rental companies answered. Rental Co F didn't respond in time, so I couldn't check it. That doesn't mean it has no cars.",
+        "timestamp": "2026-11-20T13:40:15-08:00",
+        "step_type": "coverage"
+      },
+      {
+        "step_number": 4,
+        "step_name": "Filled in missing prices",
+        "plain_language_finding": "PLACEHOLDER OctoTrip didn't return fees for Rental Co C and Rental Co D, so I used their prices saved at 1:15 PM.",
+        "timestamp": "2026-11-20T13:40:20-08:00",
+        "step_type": "source_fallback"
+      },
+      {
+        "step_number": 5,
+        "step_name": "Got full prices",
+        "plain_language_finding": "PLACEHOLDER Got the full price for 7 options, including airport fees, taxes, extra-driver and young-driver fees, plus the cost of getting to each branch.",
+        "timestamp": "2026-11-20T13:40:21-08:00",
+        "step_type": "pricing"
+      },
+      {
+        "step_number": 6,
+        "step_name": "Set aside options that don't fit",
+        "plain_language_finding": "PLACEHOLDER Set aside 4 options: one closes before pickup, one returns to a different airport, one is too small for luggage, and one is too far away.",
+        "timestamp": "2026-11-20T13:40:22-08:00",
+        "step_type": "filter"
+      },
+      {
+        "step_number": 7,
+        "step_name": "Picked the recommended car",
+        "plain_language_finding": "PLACEHOLDER Recommended because it has the lowest total cost, your current priority. It saves $67.35 compared with renting at the DFW airport counter.",
+        "timestamp": "2026-11-20T13:40:22-08:00",
+        "step_type": "ranking"
+      },
+      {
+        "step_number": 8,
+        "step_name": "Prepared the booking for you",
+        "plain_language_finding": "PLACEHOLDER Put together a summary for you to review before anything is booked.",
+        "timestamp": "2026-11-20T13:40:24-08:00",
+        "step_type": "confirmation"
+      }
+    ],
+    "confirmation": null
+  }
+}

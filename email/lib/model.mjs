@@ -87,9 +87,12 @@ function card(o, { isRecommended, why, currency, sentAt, cfg }) {
   };
 }
 
-/** Sort eligible options: by rank when given, otherwise by total, unknown prices last. */
+/** Sort eligible options: priced ones first, then by rank when given, otherwise by total. */
 function sortEligible(options) {
   return [...options].sort((a, b) => {
+    const pa = num(a.total_trip_cost) === undefined ? 1 : 0;
+    const pb = num(b.total_trip_cost) === undefined ? 1 : 0;
+    if (pa !== pb) return pa - pb;
     const ra = num(a.rank) ?? Infinity;
     const rb = num(b.rank) ?? Infinity;
     if (ra !== rb) return ra - rb;
@@ -115,7 +118,10 @@ export function buildModel(result, options = {}) {
   // ---- Options
   const eligible = sortEligible(all.filter((o) => o.status !== "not_a_fit"));
   const notAFit = all.filter((o) => o.status === "not_a_fit");
-  const recOption = eligible.find((o) => o.status === "recommended") ?? eligible[0];
+  // The agent's pick, unless it has no price (never ask someone to review a car with no total).
+  const priced = (o) => num(o.total_trip_cost) !== undefined;
+  const agentPick = eligible.find((o) => o.status === "recommended");
+  const recOption = (agentPick && priced(agentPick) ? agentPick : eligible.find(priced)) ?? eligible[0];
   const others = eligible.filter((o) => o !== recOption);
   const shownAlts = others.slice(0, cfg.max_alternatives);
   const priority = r.winner_summary?.ranking_priority_used ?? trip.ranking_priority ?? copy.ranking_priorities.default;
@@ -242,11 +248,11 @@ export function buildModel(result, options = {}) {
   }
 
   const subject =
-    kind === "results" && recommended
+    kind === "results" && recommended?.hasPrice
       ? fill(E.subject_results, { trip_name: tripName, brand: recommended.company, total: recommended.total })
       : fill(E.subject_empty, { trip_name: tripName });
   const preheader =
-    kind === "results" && recommended ? fill(E.preheader_results, { brand: recommended.company, total: recommended.total }) : empty?.heading;
+    kind === "results" && recommended?.hasPrice ? fill(E.preheader_results, { brand: recommended.company, total: recommended.total }) : empty?.heading ?? headline;
 
   const hiddenEligible = Math.max(0, others.length - shownAlts.length);
   return {

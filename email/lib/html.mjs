@@ -85,7 +85,7 @@ function optionCard(c, m) {
   </table>
   <div style="margin-top:14px;padding-top:12px;border-top:1px solid ${T.border};">${facts}${checked}</div>
   ${
-    c.recommended
+    c.recommended && c.hasPrice
       ? `${spacer(16)}${button(m.button.label, m.links.confirm_url)}
          <p style="margin:10px 0 0;font-family:${T.font};font-size:13px;line-height:1.45;color:${T.muted};">${esc(m.button.note)}</p>`
       : ""
