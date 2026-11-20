@@ -1,0 +1,46 @@
+Subject: Guido found a car for your trip: PLACEHOLDER Rental Co B, $415.16
+
+Guido
+
+Found 3 options for your trip.
+Here's what I recommend and why. Nothing is booked until you say so.
+
+Note: These are made-up sample prices for this demo. They are not real quotes.
+
+YOUR TRIP
+Dates: Dates not provided
+Ranked by closest pickup
+
+[Recommended] PLACEHOLDER Rental Co B: $415.16 total for your trip
+Car size not listed
+Branch not listed
+Cancellation terms not provided
+
+Review and book: {{confirm_url}}
+Nothing is booked or paid until you confirm.
+
+ALSO GOOD OPTIONS
+
+[Also a good option] Rental company: Price not available
+Car size not listed
+Branch not listed
+Cancellation terms not provided
+
+[Also a good option] PLACEHOLDER Rental Co C: Price not available
+Car size not listed
+Branch not listed
+Cancellation terms not provided
+
+See all options: {{audit_url}}
+
+Want different dates or details? Just reply to this email and I'll search again.
+You can also write to {{reply_to_address}}.
+
+Where these prices came from:
+Sources: the rental companies.
+These are sample prices for a demo, not real quotes.
+
+--
+Guido never books or pays for you. When you're ready, you confirm on the rental company's own checkout.
+I never see or store your card details.
+You're getting this because you asked Guido to find you a rental car.

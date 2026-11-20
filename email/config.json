@@ -1,0 +1,19 @@
+{
+  "_how_to_edit": "Email settings (not wording; wording lives in contracts/display_fields.json → email). logo_url: public URL of the Guido icon PNG. Leave empty to show only the text wordmark.",
+  "logo_url": "",
+  "logo_size_px": 28,
+  "stale_after_minutes": 60,
+  "max_alternatives": 3,
+  "max_reason_chars": 120,
+  "max_company_chars": 32,
+  "max_branch_chars": 44,
+  "max_not_a_fit_listed": 5,
+  "max_tags_recommended": 3,
+  "max_tags_alternative": 2,
+  "placeholders": {
+    "audit_url": "{{audit_url}}",
+    "confirm_url": "{{confirm_url}}",
+    "reply_to_address": "{{reply_to_address}}"
+  },
+  "preview_logo_path": "../../frontend/public/brand/guido_icon_128.png"
+}

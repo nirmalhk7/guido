@@ -1,0 +1,475 @@
+{
+  "_how_to_edit": "This is the ONE place for what the audit-trail page shows and how it's worded. To hide a data point, delete its entry or set \"show\": false. To reorder, move the entry up or down in its list. To rename, change \"label\". \"field\" must match a field name in trip_result.schema.json; dots mean a field inside another one (e.g. travel_to_branch.minutes). \"format\" tells the page how to display the value: text, currency (value is in CENTS, the page divides by 100), minutes, datetime, date, number, list, mileage, yes_no, status, priority, tags, cancellation, source, environment. Words in {curly_braces} are filled in by the page.",
+
+  "status_labels": {
+    "recommended": "Recommended",
+    "alternative": "Also a good option",
+    "not_a_fit": "Doesn't fit your trip"
+  },
+
+  "ranking_priorities": {
+    "_note": "Order here = order in the picker. recommended_because is used in the ranking step of the audit trail and swapped in when the user changes priority.",
+    "default": "lowest_total_cost",
+    "picker_label": "What matters most?",
+    "options": [
+      {
+        "key": "lowest_total_cost",
+        "label": "Lowest total cost",
+        "recommended_because": "Recommended because it has the lowest total cost, your current priority."
+      },
+      {
+        "key": "closest_pickup",
+        "label": "Closest pickup",
+        "recommended_because": "Recommended because it's the quickest to get to, your current priority."
+      },
+      {
+        "key": "most_flexible_cancellation",
+        "label": "Most flexible cancellation",
+        "recommended_because": "Recommended because it's the easiest to cancel, your current priority."
+      }
+    ],
+    "changed_note": "You changed what matters most to {priority_label}. The recommendation updated."
+  },
+
+  "tag_labels": {
+    "_note": "Options send tag keys; this is the wording. A key not listed here is not shown.",
+    "lowest_total_cost": "Lowest total cost",
+    "closest_pickup": "Closest pickup",
+    "most_flexible_cancellation": "Most flexible cancellation",
+    "free_cancellation": "Free cancellation",
+    "free_shuttle": "Free shuttle",
+    "no_airport_fees": "No airport fees",
+    "unlimited_miles": "Unlimited miles"
+  },
+
+  "environment_labels": {
+    "live": "Live prices",
+    "sandbox": "Test prices (not bookable)",
+    "fixture": "Sample prices, not real quotes",
+    "unavailable": "Couldn't get prices"
+  },
+
+  "environment_banners": {
+    "_note": "Shown at the top of the page based on data_source.environment. live has no banner.",
+    "sandbox": "These prices come from a test system. They're realistic but can't be booked.",
+    "fixture": "These are made-up sample prices for this demo. They are not real quotes.",
+    "unavailable": "I couldn't reach any rental companies just now. That doesn't mean there are no cars. Try again in a few minutes."
+  },
+
+  "source_labels": {
+    "_note": "Friendly names for the sources in data_sources.json.",
+    "octotrip_mcp": "OctoTrip",
+    "browser_agent": "the rental companies' websites",
+    "scraping_tool": "the rental companies' websites",
+    "cached_snapshot": "prices saved earlier",
+    "placeholder_sample": "sample data",
+    "manual_file": "prices entered by hand"
+  },
+
+  "data_source": {
+    "prices_as_of": "Prices from {source_label}, checked {captured_at}",
+    "mixed_sources_note": "Some prices came from {source_label}, checked {captured_at}."
+  },
+
+  "coverage": {
+    "heading": "Who I could check",
+    "summary": "{responded} of {total} rental companies answered",
+    "all_answered": "All {total} rental companies answered",
+    "provider_result_labels": {
+      "complete": "Checked",
+      "partial": "Partly checked",
+      "no_cars": "No cars for your dates",
+      "unavailable": "Couldn't check"
+    },
+    "reason_labels": {
+      "timed_out": "didn't respond in time",
+      "no_access": "we don't have access yet",
+      "error": "had a technical problem",
+      "missing_fees": "didn't include all fees",
+      "incomplete_data": "sent incomplete details",
+      "not_set_up": "isn't set up yet"
+    },
+    "unavailable_note": "Couldn't check doesn't mean no cars. It means I couldn't get an answer."
+  },
+
+  "empty_states": {
+    "_note": "The page picks one of these when there's no recommendation.",
+    "nothing_fits": "I found cars, but none fit your trip. Here's why each one was set aside.",
+    "no_cars_found": "The rental companies I checked have no cars for these dates.",
+    "nothing_reachable": "I couldn't reach any rental companies just now. That doesn't mean there are no cars. Try again in a few minutes."
+  },
+
+  "handoff_labels": {
+    "rental_company_checkout": "Finish booking on the rental company's site",
+    "simulated_booking": "Demo booking (simulated, nothing was paid)"
+  },
+
+  "mileage_labels": {
+    "unlimited": "Unlimited miles",
+    "capped": "{cap_miles} miles included, then {per_mile_cost} per mile"
+  },
+
+  "cancellation_labels": {
+    "free_until_pickup": "Free cancellation up to pickup",
+    "free_until": "Free cancellation until {free_until}",
+    "partial": "{fee} fee to cancel",
+    "non_refundable": "No refund if you cancel",
+    "unknown": "Cancellation terms not shared"
+  },
+
+  "layer_1_answer": {
+    "heading": "Recommended for your trip",
+    "_note": "Plain field names here come from the recommended option. Names starting with winner_summary. or trip_request. come from those sections.",
+    "fields": [
+      { "field": "brand", "label": "Company", "format": "text", "show": true },
+      { "field": "car_class", "label": "Car", "format": "text", "show": true },
+      { "field": "pickup_branch", "label": "Pick up at", "format": "text", "show": true },
+      { "field": "winner_summary.total", "label": "Total for your trip", "format": "currency", "show": true },
+      { "field": "winner_summary.savings_vs_obvious_option", "label": "You save", "format": "currency", "show": true },
+      { "field": "trip_request.ranking_priority", "label": "Picked for", "format": "priority", "show": true }
+    ]
+  },
+
+  "layer_2_reason": {
+    "heading": "Why this one",
+    "field": "winner_summary.one_line_explanation"
+  },
+
+  "layer_3_how_i_decided": {
+    "toggle_label": "How I decided",
+    "timeline": {
+      "heading": "What I did",
+      "fields": [
+        { "field": "step_name", "label": "Step", "format": "text", "show": true },
+        { "field": "plain_language_finding", "label": "What I found", "format": "text", "show": true },
+        { "field": "timestamp", "label": "Time", "format": "datetime", "show": false }
+      ]
+    },
+    "comparison_table": {
+      "heading": "Every option I looked at",
+      "groups": [
+        { "statuses": ["recommended", "alternative"], "heading": "Options that fit", "style": "normal", "sort": "rank" },
+        { "statuses": ["not_a_fit"], "heading": "Doesn't fit your trip", "style": "greyed_out", "sort": "total_trip_cost" }
+      ],
+      "fields": [
+        { "field": "status", "label": "", "format": "status", "show": true },
+        { "field": "brand", "label": "Company", "format": "text", "show": true },
+        { "field": "pickup_branch", "label": "Pick up", "format": "text", "show": true },
+        { "field": "dropoff_branch", "label": "Return", "format": "text", "show": true },
+        { "field": "pickup_time", "label": "Pick-up time", "format": "datetime", "show": false },
+        { "field": "dropoff_time", "label": "Return time", "format": "datetime", "show": false },
+        { "field": "car_class", "label": "Car", "format": "text", "show": true },
+        { "field": "seats", "label": "Seats", "format": "number", "show": true },
+        { "field": "luggage_fit_note", "label": "Luggage", "format": "text", "show": true },
+        { "field": "base_daily_rate", "label": "Daily rate", "format": "currency", "show": true },
+        { "field": "days", "label": "Days", "format": "number", "show": false },
+        { "field": "base_total", "label": "Rental price", "format": "currency", "show": true },
+        { "field": "airport_concession_fee", "label": "Airport fees", "format": "currency", "show": true },
+        { "field": "taxes", "label": "Taxes", "format": "currency", "show": true },
+        { "field": "other_fees", "label": "Other fees", "format": "currency", "show": true },
+        { "field": "additional_driver_fee", "label": "Extra driver", "format": "currency", "show": true },
+        { "field": "young_renter_fee", "label": "Young driver fee", "format": "currency", "show": true },
+        { "field": "one_way_fee", "label": "One-way fee", "format": "currency", "show": true },
+        { "field": "mileage_policy", "label": "Miles", "format": "mileage", "show": true },
+        { "field": "travel_to_branch.minutes", "label": "Time to get there", "format": "minutes", "show": true },
+        { "field": "travel_to_branch.cost", "label": "Cost to get there", "format": "currency", "show": true },
+        { "field": "travel_to_branch.note", "label": "How to get there", "format": "text", "show": false },
+        { "field": "total_trip_cost", "label": "Total trip cost", "format": "currency", "show": true },
+        { "field": "cancellation", "label": "Cancellation", "format": "cancellation", "show": true },
+        { "field": "source.name", "label": "Prices from", "format": "source", "show": true },
+        { "field": "source.captured_at", "label": "Checked at", "format": "datetime", "show": true },
+        { "field": "source.environment", "label": "Price type", "format": "environment", "show": false },
+        { "field": "tags", "label": "", "format": "tags", "show": true },
+        { "field": "reason", "label": "Why", "format": "text", "show": true }
+      ]
+    }
+  },
+
+  "assumptions": {
+    "heading": "What I assumed",
+    "fields": [
+      { "field": "trip_request.ranking_priority", "label": "What matters most", "format": "priority", "show": true },
+      { "field": "trip_request.airports", "label": "Airports", "format": "list", "show": true },
+      { "field": "trip_request.pickup_datetime", "label": "Pick up", "format": "datetime", "show": true },
+      { "field": "trip_request.return_datetime", "label": "Return", "format": "datetime", "show": true },
+      { "field": "trip_request.travelers", "label": "Travelers", "format": "number", "show": true },
+      { "field": "trip_request.drivers", "label": "Driver ages", "format": "list", "show": true },
+      { "field": "trip_request.car_class", "label": "Car size", "format": "text", "show": true },
+      { "field": "trip_request.one_way_ok", "label": "OK to return somewhere else", "format": "yes_no", "show": true },
+      { "field": "trip_request.max_travel_minutes_to_branch", "label": "Longest trip to the branch", "format": "minutes", "show": true }
+    ]
+  },
+
+  "confirmation": {
+    "heading": "Review before booking",
+    "fields": [
+      { "field": "confirmation_summary.what", "label": "What", "format": "text", "show": true },
+      { "field": "confirmation_summary.where", "label": "Where", "format": "text", "show": true },
+      { "field": "confirmation_summary.dates", "label": "When", "format": "text", "show": true },
+      { "field": "confirmation_summary.total", "label": "Total", "format": "currency", "show": true },
+      { "field": "confirmation_summary.cancellation_policy", "label": "Cancellation", "format": "text", "show": true },
+      { "field": "confirmation_summary.drivers", "label": "Drivers", "format": "list", "show": true }
+    ],
+    "approve_button": "Looks good, book it",
+    "change_button": "Change something",
+    "approved_label": "You approved this on {approved_at}",
+    "not_approved_label": "Waiting for your OK. Nothing is booked yet.",
+    "checkout_link_label": "Continue to {brand}'s checkout",
+    "no_card_note": "I never see or store your card details."
+  },
+
+  "_ui_wording_note": "Everything below is wording only, added for the audit-trail page's sections and in-between states. No data fields.",
+
+  "common": {
+    "yes": "Yes",
+    "no": "No"
+  },
+
+  "page": {
+    "brand_name": "Guido",
+    "title": "Your rental car",
+    "agent_name": "Your car-finding agent",
+    "trip_line": "{start_area} · {pickup} to {return}"
+  },
+
+  "car_class_labels": {
+    "compact": "Compact",
+    "midsize": "Midsize",
+    "fullsize": "Full-size",
+    "midsize_suv": "Midsize SUV",
+    "fullsize_suv": "Full-size SUV",
+    "minivan": "Minivan"
+  },
+
+  "trip_summary": {
+    "heading": "Your trip",
+    "travelers": "{count} travelers",
+    "drivers": "{count} drivers, ages {ages}",
+    "young_driver_note": "Young driver fee applies",
+    "max_travel": "Up to {minutes} min to the branch",
+    "one_way_yes": "Can return somewhere else",
+    "one_way_no": "Return to the same place",
+    "assumptions_toggle": "See what I assumed",
+    "assumptions_hide": "Hide what I assumed"
+  },
+
+  "priority_selector": {
+    "group_label": "Rank options by what matters most"
+  },
+
+  "option_card": {
+    "total_caption": "total for your trip",
+    "car_line": "{car_class} · {seats} seats",
+    "strengths_label": "Strengths",
+    "core_rental": "Rental",
+    "core_fees_taxes": "Fees and taxes",
+    "core_travel": "Getting to the branch",
+    "breakdown_show": "See full price breakdown",
+    "breakdown_hide": "Hide price breakdown",
+    "breakdown_total": "Total",
+    "daily_rate_line": "{rate} a day × {days} days",
+    "includes_note": "Includes all fees and taxes, plus getting to the branch. Gas isn't included.",
+    "travel_line": "{minutes} min to get there",
+    "savings_line": "Saves {amount} compared with {brand}, the usual pick",
+    "costs_more_line": "{amount} more than {brand}, the usual pick",
+    "checked_line": "{source} · checked {when}",
+    "recommended_because_heading": "Why this one"
+  },
+
+  "alternatives": {
+    "heading": "Also good options",
+    "diff_more": "{amount} more than the recommended car",
+    "diff_less": "{amount} less than the recommended car",
+    "diff_same": "Same price as the recommended car"
+  },
+
+  "not_a_fit_group": {
+    "intro": "I looked at these, but each one misses something you need.",
+    "show": "Show {count} that don't fit",
+    "hide": "Hide the ones that don't fit"
+  },
+
+  "couldnt_check_group": {
+    "heading": "Couldn't fully check",
+    "intro": "These companies didn't give me complete prices, so they aren't compared above.",
+    "still_checking": "Still checking…"
+  },
+
+  "coverage_detail": {
+    "show": "See who I checked",
+    "hide": "Hide details",
+    "providers_heading": "Rental companies",
+    "sources_heading": "Where I looked for prices",
+    "source_outcome_labels": {
+      "used": "Used",
+      "partial": "Partly used",
+      "unavailable": "Couldn't reach",
+      "skipped": "Not used"
+    },
+    "still_checking_line": "Still checking {provider}. Here's what I have so far.",
+    "pending_label": "Still checking"
+  },
+
+  "how_i_decided": {
+    "summary": "{count} steps, from your request to the pick",
+    "open": "Show how I decided",
+    "close": "Hide how I decided",
+    "step_done": "Done",
+    "step_working": "Working on it",
+    "step_pending": "Not yet",
+    "priority_changed_step_name": "You changed what matters most",
+    "compare_show": "Compare all options side by side",
+    "compare_hide": "Hide comparison"
+  },
+
+  "freshness": {
+    "just_now": "just now",
+    "minutes_ago": "{count} min ago",
+    "hours_ago": "{count} hr ago",
+    "days_ago": "{count} days ago",
+    "old_price_label": "Older price",
+    "stale_banner": "Some prices were checked a while ago and may have changed."
+  },
+
+  "loading": {
+    "heading": "Finding the best car for your trip",
+    "subheading": "This usually takes under a minute. Here's what I'm doing.",
+    "results_so_far": "Results so far"
+  },
+
+  "outdated": {
+    "banner": "You changed your trip. These results are for your earlier details.",
+    "searching_again": "Searching again with your new details…",
+    "demo_note": "Demo: new searches aren't connected yet."
+  },
+
+  "empty_state_details": {
+    "searched_heading": "What I searched",
+    "searched_line": "{travelers} travelers, {pickup} to {return}, within {minutes} min of {airports}",
+    "why_heading": "Why nothing came up",
+    "nothing_fits_why": "Every car I found missed at least one of your needs:",
+    "no_cars_why": "The rental companies that answered don't have cars for these dates and places.",
+    "nothing_reachable_why": "None of the rental companies answered in time, so I couldn't check prices.",
+    "change_heading": "What could help",
+    "suggestion_wider_distance": "Allow a longer trip to the branch (now {minutes} min)",
+    "suggestion_allow_one_way": "Allow returning the car somewhere else",
+    "suggestion_different_car": "Try a different car size",
+    "suggestion_new_dates": "Try different dates or times",
+    "suggestion_try_later": "Try again in a few minutes"
+  },
+
+  "retry_form": {
+    "heading": "Try different details",
+    "pickup": "Pick up",
+    "return": "Return",
+    "max_travel": "Longest trip to the branch (minutes)",
+    "one_way": "OK to return the car somewhere else",
+    "car_size": "Car size",
+    "submit": "Search again",
+    "email_heading": "Or reply to the email",
+    "email_instruction": "Reply to the email with new dates and we'll search again.",
+    "email_placeholder": "PLACEHOLDER: reply address goes here"
+  },
+
+  "confirmation_flow": {
+    "intro": "Nothing is booked until you say so.",
+    "approve_note": "You won't be charged on this page.",
+    "what_line": "{car_class} ({seats} seats) from {brand}",
+    "where_same": "Pick up and return at {branch}",
+    "where_different": "Pick up at {pickup}, return at {dropoff}",
+    "dates_line": "{pickup} to {return} ({days} days)",
+    "driver_line": "Driver {number}, age {age}",
+    "young_driver_suffix": "(young driver fee applies)",
+    "approved_step_name": "You approved",
+    "approved_step_finding": "You approved booking {what} for {total}.",
+    "handoff_step_name": "Booking handed off",
+    "handoff_simulated_finding": "Completed a simulated booking for the demo. Nothing was paid and no card details were used.",
+    "handoff_checkout_finding": "Sent you to {brand}'s checkout to finish booking. I never see your card details.",
+    "simulated_done": "Demo booking done. Nothing was paid.",
+    "checkout_missing": "The checkout link isn't available yet. Please book on {brand}'s website."
+  },
+
+  "email": {
+    "_note": "Wording for the results email (email/). Wording only, no data fields.",
+    "logo_alt": "Guido",
+    "subject_results": "Guido found a car for {trip_name}: {brand}, {total}",
+    "subject_empty": "About the rental car search for {trip_name}",
+    "preheader_results": "Recommended: {brand} for {total}. Nothing is booked until you say so.",
+    "trip_name": "your {area} trip",
+    "trip_name_no_area": "your trip",
+    "headline_many": "Found {count} options for {trip_name}{when}.",
+    "headline_one": "Found 1 option for {trip_name}{when}.",
+    "headline_empty": "About {trip_name}{when}",
+    "intro": "Here's what I recommend and why. Nothing is booked until you say so.",
+    "trip_heading": "Your trip",
+    "trip_row_dates": "Dates",
+    "trip_row_people": "Travelers",
+    "trip_row_drivers": "Drivers",
+    "trip_row_car": "Car size",
+    "trip_row_branch_distance": "Branch distance",
+    "trip_row_return": "Drop-off",
+    "ranked_by": "Ranked by {priority}",
+    "pickup_return_same": "Pick up and return: {branch}",
+    "pickup_return_different": "Pick up: {pickup} · Return: {dropoff}",
+    "review_button": "Review and book",
+    "review_note": "Nothing is booked or paid until you confirm.",
+    "see_all": "See all options",
+    "see_all_count": "See all {count} options",
+    "not_a_fit_line_one": "1 more option didn't fit your trip. See why on the results page.",
+    "not_a_fit_line_many": "{count} more options didn't fit your trip. See why on the results page.",
+    "coverage_reason_groups": {
+      "timed_out": "Didn't respond in time: {providers}",
+      "no_access": "No access yet: {providers}",
+      "error": "Had a technical problem: {providers}",
+      "missing_fees": "Didn't include all fees: {providers}",
+      "incomplete_data": "Sent incomplete details: {providers}",
+      "not_set_up": "Not set up yet: {providers}"
+    },
+    "list_and": "and",
+    "reply_line": "Want different dates or details? Just reply to this email and I'll search again.",
+    "reply_address_line": "You can also write to {reply_to_address}.",
+    "source_heading": "Where these prices came from",
+    "source_line": "Sources: {sources}. Oldest price checked {when}.",
+    "source_line_no_time": "Sources: {sources}.",
+    "env_plain_live": "These are live prices from the rental companies.",
+    "env_plain_sandbox": "These are test prices from a provider's test system. They can't be booked.",
+    "env_plain_fixture": "These are sample prices for a demo, not real quotes.",
+    "env_plain_saved_earlier": "Some prices were saved earlier and may have changed since.",
+    "stale_note": "Some prices were checked {ago} before this email was sent and may have changed.",
+    "stale_card_note": "Older price: checked {ago} before this email",
+    "ago_minutes": "{count} minutes",
+    "ago_hours_one": "about 1 hour",
+    "ago_hours": "about {count} hours",
+    "ago_days": "{count} days",
+    "checked_line": "{source} · checked {when}",
+    "footer_never_books": "Guido never books or pays for you. When you're ready, you confirm on the rental company's own checkout.",
+    "footer_why": "You're getting this because you asked Guido to find you a rental car.",
+    "empty_reply": "Reply to this email with new details and I'll search again.",
+    "empty_link": "See the full details",
+    "empty_more_options": "and {count} more",
+    "fallback_company": "Rental company",
+    "fallback_branch": "Branch not listed",
+    "fallback_price": "Price not available",
+    "fallback_cancellation": "Cancellation terms not provided",
+    "fallback_car": "Car size not listed",
+    "fallback_reason": "Doesn't meet one of your needs.",
+    "fallback_sources": "the rental companies",
+    "fallback_dates": "Dates not provided",
+    "fallback_value": "Not provided"
+  },
+
+  "demo": {
+    "switcher_label": "Preview state",
+    "states": {
+      "results": "Results (ready to approve)",
+      "loading": "Loading",
+      "slow": "Slow company",
+      "stale": "Older prices",
+      "outdated": "Trip changed",
+      "nothing_fits": "Nothing fits",
+      "no_cars": "No cars found",
+      "unreachable": "Couldn't reach anyone",
+      "approved": "Already approved"
+    }
+  }
+}

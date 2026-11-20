@@ -1,0 +1,474 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "trip_result.schema.json",
+  "title": "Trip result",
+  "description": "What the rental-car agent returns for one trip request: every option it considered, the winner under the user's current priority, which sources and rental companies it reached, the steps it took, and the booking confirmation. ALL money is integer cents in `currency` (e.g. 41320 = $413.20). Data sources produce `#/$defs/source_output`. See docs/CONTEXT.md and contracts/data_source_interface.md.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "currency",
+    "money_unit",
+    "data_source",
+    "coverage",
+    "trip_request",
+    "options",
+    "winner_summary",
+    "audit_trail",
+    "confirmation"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Version of this contract, e.g. \"0.2.0\"."
+    },
+    "currency": {
+      "type": "string",
+      "description": "Currency for all money fields, e.g. \"USD\".",
+      "default": "USD"
+    },
+    "money_unit": {
+      "const": "cents",
+      "description": "Every money field is a whole number of cents. 41320 means $413.20."
+    },
+    "placeholder_notice": {
+      "type": "string",
+      "description": "Required when data_source.environment is \"fixture\". Explains which values are made up."
+    },
+    "data_source": { "$ref": "#/$defs/data_source_summary" },
+    "coverage": { "$ref": "#/$defs/coverage" },
+    "trip_request": { "$ref": "#/$defs/trip_request" },
+    "options": {
+      "type": "array",
+      "description": "EVERY candidate considered, including ones that don't fit, so the page can filter and re-rank on its own. May be empty when nothing could be checked.",
+      "items": { "$ref": "#/$defs/option" }
+    },
+    "winner_summary": {
+      "description": "null when there is no eligible option (nothing fits, or nothing could be checked).",
+      "oneOf": [{ "$ref": "#/$defs/winner_summary" }, { "type": "null" }]
+    },
+    "audit_trail": {
+      "type": "array",
+      "description": "Ordered steps the agent took, in plain language. Ends with the approval or hand-off step once those happen.",
+      "items": { "$ref": "#/$defs/audit_step" }
+    },
+    "confirmation": {
+      "description": "null when there is nothing to book.",
+      "oneOf": [{ "$ref": "#/$defs/confirmation" }, { "type": "null" }]
+    }
+  },
+  "if": {
+    "properties": { "data_source": { "properties": { "environment": { "const": "fixture" } } } }
+  },
+  "then": { "required": ["placeholder_notice"] },
+
+  "$defs": {
+    "money": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Amount in whole cents of the result's currency."
+    },
+
+    "environment": {
+      "enum": ["live", "sandbox", "fixture", "unavailable"],
+      "description": "Where data came from. live = real prices from a real provider. sandbox = a provider's test system (not bookable). fixture = made-up or saved sample data. unavailable = we couldn't get data (timed out, no access, error). unavailable never means \"no cars\"."
+    },
+
+    "option_environment": {
+      "enum": ["live", "sandbox", "fixture"],
+      "description": "Same as environment, minus unavailable: an option that exists came from somewhere."
+    },
+
+    "ranking_priority": {
+      "enum": ["lowest_total_cost", "closest_pickup", "most_flexible_cancellation"],
+      "description": "What the user cares about most. Default lowest_total_cost. Ranking rules (eligible options only; the page can re-run these on its own): lowest_total_cost = total_trip_cost low to high. closest_pickup = travel_to_branch.minutes low to high. most_flexible_cancellation = cancellation.type in the order free, partial, non_refundable, unknown; among free, a later free_until first (null = free until pickup = best); among partial, a lower fee first. Ties are broken by total_trip_cost, then travel_to_branch.minutes, then option_id."
+    },
+
+    "data_source_summary": {
+      "type": "object",
+      "description": "One-line summary for the page's banner. Per-option details live in each option's `source`.",
+      "required": ["data_source", "captured_at", "environment"],
+      "properties": {
+        "data_source": {
+          "type": "string",
+          "description": "Id of the main source used (from contracts/data_sources.json), e.g. \"octotrip_mcp\"."
+        },
+        "captured_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "The OLDEST captured_at across options, so \"prices as of\" never overstates freshness. null if there are no options."
+        },
+        "environment": {
+          "$ref": "#/$defs/environment",
+          "description": "The LEAST real environment across options (live > sandbox > fixture), so the banner never overstates. unavailable if there are no options because nothing could be reached."
+        }
+      }
+    },
+
+    "option_source": {
+      "type": "object",
+      "description": "Where this one option's prices came from.",
+      "required": ["name", "captured_at", "environment"],
+      "properties": {
+        "name": { "type": "string", "description": "Source id from contracts/data_sources.json, e.g. \"octotrip_mcp\"." },
+        "captured_at": { "type": "string", "format": "date-time" },
+        "environment": { "$ref": "#/$defs/option_environment" }
+      }
+    },
+
+    "unavailable_reason": {
+      "enum": ["timed_out", "no_access", "error", "missing_fees", "incomplete_data", "not_set_up"],
+      "description": "Why a source or rental company couldn't give us usable data."
+    },
+
+    "coverage": {
+      "type": "object",
+      "description": "An honest record of what we could and couldn't check. \"Only some providers responded\" is a normal state.",
+      "required": ["source_attempts", "providers"],
+      "properties": {
+        "source_attempts": {
+          "type": "array",
+          "description": "Each data source tried, in fallback order.",
+          "items": {
+            "type": "object",
+            "required": ["source", "outcome", "environment", "attempted_at"],
+            "properties": {
+              "source": { "type": "string", "description": "Source id from contracts/data_sources.json." },
+              "outcome": {
+                "enum": ["used", "partial", "unavailable", "skipped"],
+                "description": "used = all its data was used. partial = some was usable, the rest came from a fallback. unavailable = it couldn't answer. skipped = not tried (not set up, or not needed)."
+              },
+              "reason": {
+                "oneOf": [{ "$ref": "#/$defs/unavailable_reason" }, { "type": "null" }]
+              },
+              "environment": { "$ref": "#/$defs/environment" },
+              "attempted_at": { "type": ["string", "null"], "format": "date-time" }
+            }
+          }
+        },
+        "providers": {
+          "type": "array",
+          "description": "Each rental company we tried to check.",
+          "items": {
+            "type": "object",
+            "required": ["provider", "result", "source", "options_returned"],
+            "properties": {
+              "provider": { "type": "string", "description": "Rental company name, e.g. \"Rental Co A\"." },
+              "result": {
+                "enum": ["complete", "partial", "no_cars", "unavailable"],
+                "description": "complete = full prices for everything it had. partial = some options lacked required data and were left out. no_cars = it answered and truly has nothing for these dates. unavailable = we couldn't reach it (never shown as no cars)."
+              },
+              "reason": {
+                "oneOf": [{ "$ref": "#/$defs/unavailable_reason" }, { "type": "null" }],
+                "description": "Required for partial and unavailable."
+              },
+              "source": { "type": ["string", "null"], "description": "Source id that provided this company's options. null if unavailable." },
+              "options_returned": { "type": "integer", "minimum": 0 }
+            },
+            "allOf": [
+              {
+                "if": { "properties": { "result": { "enum": ["partial", "unavailable"] } } },
+                "then": { "required": ["reason"], "properties": { "reason": { "$ref": "#/$defs/unavailable_reason" } } }
+              }
+            ]
+          }
+        }
+      }
+    },
+
+    "driver": {
+      "type": "object",
+      "required": ["age"],
+      "properties": {
+        "age": { "type": "integer", "minimum": 16 }
+      }
+    },
+
+    "trip_request": {
+      "type": "object",
+      "description": "Works for any trip. Nothing here is specific to the Dallas demo.",
+      "required": [
+        "start_area",
+        "airports",
+        "end_area",
+        "pickup_datetime",
+        "return_datetime",
+        "days",
+        "travelers",
+        "drivers",
+        "car_class",
+        "one_way_ok",
+        "max_travel_minutes_to_branch",
+        "ranking_priority"
+      ],
+      "properties": {
+        "start_area": { "type": "string", "description": "e.g. \"Dallas, TX\"." },
+        "airports": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Airport codes to search around, e.g. [\"DFW\", \"DAL\"]. May be empty for non-airport trips."
+        },
+        "end_area": { "type": "string" },
+        "pickup_datetime": { "type": "string", "format": "date-time" },
+        "return_datetime": { "type": "string", "format": "date-time" },
+        "days": { "type": "integer", "minimum": 1, "description": "Billable rental days." },
+        "travelers": { "type": "integer", "minimum": 1 },
+        "drivers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/driver" },
+          "minItems": 1
+        },
+        "car_class": { "type": "string", "description": "Requested car class, e.g. \"midsize_suv\"." },
+        "one_way_ok": { "type": "boolean", "description": "Can the car be dropped off somewhere other than the pickup branch?" },
+        "max_travel_minutes_to_branch": { "type": "integer", "minimum": 0 },
+        "ranking_priority": { "$ref": "#/$defs/ranking_priority" }
+      }
+    },
+
+    "mileage_policy": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["unlimited", "capped"] },
+        "cap_miles": { "type": "number", "minimum": 0, "description": "Total miles included (only when capped)." },
+        "per_mile_cost": { "$ref": "#/$defs/money", "description": "Cents per mile over the cap (only when capped)." }
+      },
+      "if": { "properties": { "type": { "const": "capped" } } },
+      "then": { "required": ["cap_miles", "per_mile_cost"] }
+    },
+
+    "travel_to_branch": {
+      "type": "object",
+      "description": "Getting from the airport to the pickup branch. Needed to re-rank by closest_pickup.",
+      "required": ["minutes", "cost"],
+      "properties": {
+        "minutes": { "type": "number", "minimum": 0 },
+        "cost": { "$ref": "#/$defs/money" },
+        "note": { "type": "string", "description": "e.g. \"Free shuttle\" or \"Rideshare, about $18\"." }
+      }
+    },
+
+    "cancellation": {
+      "type": "object",
+      "description": "Cancellation terms. Needed to re-rank by most_flexible_cancellation.",
+      "required": ["type", "summary"],
+      "properties": {
+        "type": {
+          "enum": ["free", "partial", "non_refundable", "unknown"],
+          "description": "free = cancel for nothing until free_until. partial = a fee applies. non_refundable = no refund. unknown = the source didn't say."
+        },
+        "free_until": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "For free: last moment to cancel for free. null = free right up to pickup."
+        },
+        "fee": {
+          "oneOf": [{ "$ref": "#/$defs/money" }, { "type": "null" }],
+          "description": "For partial: the cancellation fee in cents."
+        },
+        "summary": { "type": "string", "description": "The terms in plain words, e.g. \"Free cancellation until 24 hours before pickup\"." }
+      },
+      "allOf": [
+        { "if": { "properties": { "type": { "const": "free" } } }, "then": { "required": ["free_until"] } },
+        { "if": { "properties": { "type": { "const": "partial" } } }, "then": { "required": ["fee"], "properties": { "fee": { "$ref": "#/$defs/money" } } } }
+      ]
+    },
+
+    "option_facts": {
+      "type": "object",
+      "description": "The facts about one rental option, as a data source returns them. Options missing required facts (e.g. fees) are left out, and their rental company is marked partial in coverage.",
+      "required": [
+        "option_id",
+        "brand",
+        "pickup_branch",
+        "dropoff_branch",
+        "pickup_time",
+        "dropoff_time",
+        "base_daily_rate",
+        "days",
+        "base_total",
+        "airport_concession_fee",
+        "taxes",
+        "other_fees",
+        "additional_driver_fee",
+        "young_renter_fee",
+        "one_way_fee",
+        "mileage_policy",
+        "travel_to_branch",
+        "car_class",
+        "seats",
+        "luggage_fit_note",
+        "total_trip_cost",
+        "cancellation",
+        "source"
+      ],
+      "properties": {
+        "option_id": { "type": "string" },
+        "brand": { "type": "string" },
+        "pickup_branch": { "type": "string" },
+        "dropoff_branch": { "type": "string" },
+        "pickup_time": { "type": "string", "format": "date-time" },
+        "dropoff_time": { "type": "string", "format": "date-time" },
+        "base_daily_rate": { "$ref": "#/$defs/money" },
+        "days": { "type": "integer", "minimum": 1 },
+        "base_total": { "$ref": "#/$defs/money" },
+        "airport_concession_fee": { "$ref": "#/$defs/money", "description": "Airport or concession recovery fee. 0 if none." },
+        "taxes": { "$ref": "#/$defs/money" },
+        "other_fees": { "$ref": "#/$defs/money", "description": "Any other fees, e.g. facility charges." },
+        "additional_driver_fee": { "$ref": "#/$defs/money" },
+        "young_renter_fee": { "$ref": "#/$defs/money" },
+        "one_way_fee": { "$ref": "#/$defs/money", "description": "0 if pickup and drop-off are the same branch." },
+        "mileage_policy": { "$ref": "#/$defs/mileage_policy" },
+        "travel_to_branch": { "$ref": "#/$defs/travel_to_branch" },
+        "car_class": { "type": "string" },
+        "seats": { "type": "integer", "minimum": 1 },
+        "luggage_fit_note": { "type": "string" },
+        "total_trip_cost": {
+          "$ref": "#/$defs/money",
+          "description": "Everything added up: base_total + all fees + taxes + travel_to_branch.cost. Excludes gas and over-mileage charges."
+        },
+        "cancellation": { "$ref": "#/$defs/cancellation" },
+        "source": { "$ref": "#/$defs/option_source" }
+      }
+    },
+
+    "option": {
+      "description": "An option's facts plus the agent's judgement about it.",
+      "allOf": [
+        { "$ref": "#/$defs/option_facts" },
+        {
+          "type": "object",
+          "required": ["status"],
+          "properties": {
+            "rank": {
+              "type": ["integer", "null"],
+              "minimum": 1,
+              "description": "1 = best under trip_request.ranking_priority. Only for recommended and alternative; null for not_a_fit."
+            },
+            "status": {
+              "enum": ["recommended", "alternative", "not_a_fit"],
+              "description": "recommended = rank 1 under the CURRENT priority (moves when the priority changes). alternative = any other eligible option. not_a_fit = doesn't meet the trip's needs, regardless of priority."
+            },
+            "tags": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+              "description": "Strengths as keys (wording lives in display_fields.json tag_labels), e.g. [\"closest_pickup\", \"free_shuttle\"]. They don't depend on the current priority. Usually empty for not_a_fit."
+            },
+            "reason": {
+              "type": "string",
+              "description": "Plain-words explanation. Required for not_a_fit, e.g. \"Closes at 5 PM, before your 6 PM pickup.\""
+            }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "status": { "const": "not_a_fit" } } },
+              "then": {
+                "required": ["reason"],
+                "properties": { "rank": { "type": "null" } }
+              },
+              "else": {
+                "required": ["rank"],
+                "properties": { "rank": { "type": "integer" } }
+              }
+            },
+            {
+              "if": { "properties": { "status": { "const": "recommended" } } },
+              "then": { "properties": { "rank": { "const": 1 } } }
+            }
+          ]
+        }
+      ]
+    },
+
+    "winner_summary": {
+      "type": "object",
+      "required": [
+        "recommended_option_id",
+        "ranking_priority_used",
+        "total",
+        "savings_vs_obvious_option",
+        "one_line_explanation"
+      ],
+      "properties": {
+        "recommended_option_id": { "type": "string" },
+        "ranking_priority_used": { "$ref": "#/$defs/ranking_priority" },
+        "total": { "$ref": "#/$defs/money" },
+        "obvious_option_id": {
+          "type": "string",
+          "description": "Optional. The option most people would pick by default, which the savings are measured against."
+        },
+        "savings_vs_obvious_option": {
+          "type": "integer",
+          "description": "Cents saved vs. the obvious option. Can be negative when the priority isn't cost."
+        },
+        "one_line_explanation": { "type": "string" }
+      }
+    },
+
+    "audit_step": {
+      "type": "object",
+      "required": ["step_number", "step_name", "plain_language_finding", "timestamp"],
+      "properties": {
+        "step_number": { "type": "integer", "minimum": 1 },
+        "step_name": { "type": "string" },
+        "plain_language_finding": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "step_type": {
+          "enum": ["request", "search", "coverage", "source_fallback", "pricing", "filter", "ranking", "confirmation", "approval", "handoff"],
+          "description": "Optional. Lets the page pick an icon, and swap the ranking step's text from display_fields.json when the user changes priority."
+        }
+      }
+    },
+
+    "confirmation": {
+      "type": "object",
+      "required": ["confirmation_summary", "human_approved", "approved_at", "handoff_type"],
+      "properties": {
+        "confirmation_summary": {
+          "type": "object",
+          "required": ["what", "where", "dates", "total", "cancellation_policy", "drivers"],
+          "properties": {
+            "what": { "type": "string" },
+            "where": { "type": "string" },
+            "dates": { "type": "string" },
+            "total": { "$ref": "#/$defs/money" },
+            "cancellation_policy": { "type": "string" },
+            "drivers": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "human_approved": { "type": "boolean" },
+        "approved_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "When the human approved. null until they do."
+        },
+        "handoff_type": { "enum": ["rental_company_checkout", "simulated_booking"] },
+        "handoff_url": {
+          "type": ["string", "null"],
+          "description": "Optional. Link to the rental company's checkout, for rental_company_checkout."
+        }
+      },
+      "if": { "properties": { "human_approved": { "const": true } } },
+      "then": { "properties": { "approved_at": { "type": "string" } } }
+    },
+
+    "source_output": {
+      "type": "object",
+      "description": "What EVERY data source returns (see contracts/data_source_interface.md). The agent merges these, then adds status, rank, tags and reasons to build a trip result.",
+      "required": ["source", "environment", "captured_at", "providers", "options"],
+      "properties": {
+        "source": { "type": "string", "description": "Source id from contracts/data_sources.json." },
+        "environment": { "$ref": "#/$defs/environment" },
+        "captured_at": { "type": ["string", "null"], "format": "date-time" },
+        "reason": {
+          "oneOf": [{ "$ref": "#/$defs/unavailable_reason" }, { "type": "null" }],
+          "description": "Why, when environment is unavailable."
+        },
+        "providers": { "$ref": "#/$defs/coverage/properties/providers" },
+        "options": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/option_facts" }
+        }
+      }
+    }
+  }
+}

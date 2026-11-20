@@ -1,0 +1,83 @@
+{
+  "_how_to_edit": "The list of places the agent can get rental-car prices from. The agent tries them in fallback_order and stops once it has usable prices for every rental company it can reach. To add a source: make it return the source_output format (see data_source_interface.md), add one entry to sources, and put its id in fallback_order. To turn a source off, set enabled to false. Friendly names shown to users live in display_fields.json source_labels, not here.",
+
+  "fallback_order": [
+    "octotrip_mcp",
+    "browser_agent",
+    "scraping_tool",
+    "cached_snapshot",
+    "placeholder_sample"
+  ],
+
+  "sources": [
+    {
+      "id": "octotrip_mcp",
+      "kind": "mcp_server",
+      "enabled": true,
+      "verified": false,
+      "built": false,
+      "endpoint": "https://mcp.octotrip.app/rental-cars/mcp",
+      "auth": "none (reported, not yet confirmed)",
+      "environment": "live",
+      "notes": "Preferred source. NOT confirmed to work yet. Unknown so far: which rental companies it covers, whether it returns full fees and taxes, cancellation terms, and how fast it answers."
+    },
+    {
+      "id": "browser_agent",
+      "kind": "browser_automation",
+      "enabled": true,
+      "verified": false,
+      "built": false,
+      "endpoint": null,
+      "auth": null,
+      "environment": "live",
+      "notes": "An agent that opens rental company websites and reads quotes, like a person would. Not built yet."
+    },
+    {
+      "id": "scraping_tool",
+      "kind": "scraper",
+      "enabled": true,
+      "verified": false,
+      "built": false,
+      "endpoint": null,
+      "auth": null,
+      "environment": "live",
+      "notes": "A scraping tool that pulls quotes from rental company pages. Not chosen or built yet."
+    },
+    {
+      "id": "cached_snapshot",
+      "kind": "saved_file",
+      "enabled": true,
+      "verified": false,
+      "built": false,
+      "endpoint": null,
+      "auth": null,
+      "environment": "inherited",
+      "notes": "Prices saved from an earlier run. Each saved option keeps its original captured_at and environment, so old prices are never shown as fresh. Where snapshots are stored is not decided yet."
+    },
+    {
+      "id": "placeholder_sample",
+      "kind": "saved_file",
+      "enabled": true,
+      "verified": true,
+      "built": true,
+      "endpoint": null,
+      "path": "contracts/trip_result.sample.json",
+      "auth": null,
+      "environment": "fixture",
+      "notes": "Last resort. Made-up sample data, always labelled fixture and PLACEHOLDER. Never shown as real."
+    },
+    {
+      "id": "manual_file",
+      "kind": "saved_file",
+      "optional": true,
+      "enabled": false,
+      "verified": false,
+      "built": false,
+      "endpoint": null,
+      "path": null,
+      "auth": null,
+      "environment": "declared",
+      "notes": "Optional, not in the fallback order. Prices a person typed into a file in the source_output format, e.g. real quotes copied from rental sites for the demo. The file must say its own environment: live only if the quotes are real and have a captured_at time, otherwise fixture."
+    }
+  ]
+}

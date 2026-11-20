@@ -1,0 +1,572 @@
+{
+  "_title": "Long names and long reasons",
+  "result": {
+    "schema_version": "0.2.0",
+    "currency": "USD",
+    "money_unit": "cents",
+    "placeholder_notice": "PLACEHOLDER: This is sample data for designing and testing only (environment: fixture). Company names, branch names, prices, fees, cancellation terms, policies, times, driver ages and timestamps are all made up. Source names and the fallback story show how a real run could look; no source was actually called. The trip itself is just the demo default; the contract works for any trip.",
+    "data_source": {
+      "data_source": "octotrip_mcp",
+      "captured_at": "2026-11-20T13:15:00-08:00",
+      "environment": "fixture"
+    },
+    "coverage": {
+      "source_attempts": [
+        {
+          "source": "octotrip_mcp",
+          "outcome": "partial",
+          "reason": "missing_fees",
+          "environment": "fixture",
+          "attempted_at": "2026-11-20T13:40:00-08:00"
+        },
+        {
+          "source": "browser_agent",
+          "outcome": "skipped",
+          "reason": "not_set_up",
+          "environment": "unavailable",
+          "attempted_at": null
+        },
+        {
+          "source": "scraping_tool",
+          "outcome": "skipped",
+          "reason": "not_set_up",
+          "environment": "unavailable",
+          "attempted_at": null
+        },
+        {
+          "source": "cached_snapshot",
+          "outcome": "used",
+          "reason": null,
+          "environment": "fixture",
+          "attempted_at": "2026-11-20T13:40:20-08:00"
+        },
+        {
+          "source": "placeholder_sample",
+          "outcome": "skipped",
+          "reason": null,
+          "environment": "fixture",
+          "attempted_at": null
+        }
+      ],
+      "providers": [
+        {
+          "provider": "PLACEHOLDER Rental Co A International Holdings Group",
+          "result": "complete",
+          "reason": null,
+          "source": "octotrip_mcp",
+          "options_returned": 2
+        },
+        {
+          "provider": "PLACEHOLDER Rental Co B International Holdings Group",
+          "result": "complete",
+          "reason": null,
+          "source": "octotrip_mcp",
+          "options_returned": 2
+        },
+        {
+          "provider": "PLACEHOLDER Rental Co C International Holdings Group",
+          "result": "complete",
+          "reason": null,
+          "source": "cached_snapshot",
+          "options_returned": 1
+        },
+        {
+          "provider": "PLACEHOLDER Rental Co D International Holdings Group",
+          "result": "complete",
+          "reason": null,
+          "source": "cached_snapshot",
+          "options_returned": 1
+        },
+        {
+          "provider": "PLACEHOLDER Rental Co E International Holdings Group",
+          "result": "complete",
+          "reason": null,
+          "source": "octotrip_mcp",
+          "options_returned": 1
+        },
+        {
+          "provider": "PLACEHOLDER Rental Co F International Holdings Group",
+          "result": "unavailable",
+          "reason": "timed_out",
+          "source": null,
+          "options_returned": 0
+        }
+      ]
+    },
+    "trip_request": {
+      "start_area": "PLACEHOLDER Dallas–Fort Worth Metropolitan Area and Surrounding Counties, Texas",
+      "airports": [
+        "DFW",
+        "DAL"
+      ],
+      "end_area": "Dallas, TX",
+      "pickup_datetime": "2026-11-25T18:00:00-06:00",
+      "return_datetime": "2026-11-29T12:00:00-06:00",
+      "days": 4,
+      "travelers": 4,
+      "drivers": [
+        {
+          "age": 34
+        },
+        {
+          "age": 23
+        }
+      ],
+      "car_class": "midsize_suv",
+      "one_way_ok": false,
+      "max_travel_minutes_to_branch": 30,
+      "ranking_priority": "lowest_total_cost"
+    },
+    "options": [
+      {
+        "option_id": "opt_a",
+        "brand": "PLACEHOLDER Extraordinarily Long Rental Car Company Name Incorporated Number 1",
+        "pickup_branch": "PLACEHOLDER Dallas Fort Worth International Airport Consolidated Rental Car Center, Terminal Shuttle Stop 4B, South Entrance",
+        "dropoff_branch": "PLACEHOLDER Dallas Fort Worth International Airport Consolidated Rental Car Center, Terminal Shuttle Stop 4B, South Entrance",
+        "pickup_time": "2026-11-25T18:00:00-06:00",
+        "dropoff_time": "2026-11-29T12:00:00-06:00",
+        "base_daily_rate": 5200,
+        "days": 4,
+        "base_total": 20800,
+        "airport_concession_fee": 0,
+        "taxes": 3120,
+        "other_fees": 800,
+        "additional_driver_fee": 4800,
+        "young_renter_fee": 10000,
+        "one_way_fee": 0,
+        "mileage_policy": {
+          "type": "unlimited"
+        },
+        "travel_to_branch": {
+          "minutes": 15,
+          "cost": 1800,
+          "note": "PLACEHOLDER Take the free terminal shuttle from lower level, door 4, then walk about five minutes"
+        },
+        "car_class": "Midsize SUV",
+        "seats": 5,
+        "luggage_fit_note": "PLACEHOLDER Fits 4 carry-ons and 2 large suitcases",
+        "total_trip_cost": 41320,
+        "cancellation": {
+          "type": "free",
+          "free_until": "2026-11-24T18:00:00-06:00",
+          "fee": null,
+          "summary": "PLACEHOLDER Free cancellation until 24 hours before pickup"
+        },
+        "source": {
+          "name": "octotrip_mcp",
+          "captured_at": "2026-11-20T13:40:00-08:00",
+          "environment": "fixture"
+        },
+        "rank": 1,
+        "status": "recommended",
+        "tags": [
+          "lowest_total_cost",
+          "closest_pickup",
+          "most_flexible_cancellation",
+          "free_shuttle",
+          "no_airport_fees",
+          "unlimited_miles",
+          "some_unknown_tag"
+        ],
+        "reason": "PLACEHOLDER This option is a very good choice because it has a remarkably low base rate, waives the airport concession recovery fee entirely, includes a free second driver, offers unlimited mileage, and the branch is open twenty-four hours a day so a late arrival is not a problem at all."
+      },
+      {
+        "option_id": "opt_b",
+        "brand": "PLACEHOLDER Extraordinarily Long Rental Car Company Name Incorporated Number 2",
+        "pickup_branch": "PLACEHOLDER Dallas Fort Worth International Airport Consolidated Rental Car Center, Terminal Shuttle Stop 4B, South Entrance",
+        "dropoff_branch": "PLACEHOLDER Dallas Fort Worth International Airport Consolidated Rental Car Center, Terminal Shuttle Stop 4B, South Entrance",
+        "pickup_time": "2026-11-25T18:00:00-06:00",
+        "dropoff_time": "2026-11-29T12:00:00-06:00",
+        "base_daily_rate": 4900,
+        "days": 4,
+        "base_total": 19600,
+        "airport_concession_fee": 2176,
+        "taxes": 2940,
+        "other_fees": 1200,
+        "additional_driver_fee": 4800,
+        "young_renter_fee": 10800,
+        "one_way_fee": 0,
+        "mileage_policy": {
+          "type": "unlimited"
+        },
+        "travel_to_branch": {
+          "minutes": 10,
+          "cost": 0,
+          "note": "PLACEHOLDER Take the free terminal shuttle from lower level, door 4, then walk about five minutes"
+        },
+        "car_class": "Midsize SUV",
+        "seats": 5,
+        "luggage_fit_note": "PLACEHOLDER Fits 4 carry-ons and 2 large suitcases",
+        "total_trip_cost": 41516,
+        "cancellation": {
+          "type": "free",
+          "free_until": null,
+          "fee": null,
+          "summary": "PLACEHOLDER Free cancellation right up to pickup"
+        },
+        "source": {
+          "name": "octotrip_mcp",
+          "captured_at": "2026-11-20T13:40:00-08:00",
+          "environment": "fixture"
+        },
+        "rank": 2,
+        "status": "alternative",
+        "tags": [
+          "lowest_total_cost",
+          "closest_pickup",
+          "most_flexible_cancellation",
+          "free_shuttle",
+          "no_airport_fees",
+          "unlimited_miles",
+          "some_unknown_tag"
+        ],
+        "reason": "PLACEHOLDER This option is a very good choice because it has a remarkably low base rate, waives the airport concession recovery fee entirely, includes a free second driver, offers unlimited mileage, and the branch is open twenty-four hours a day so a late arrival is not a problem at all."
+      },
+      {
+        "option_id": "opt_c",
+        "brand": "PLACEHOLDER Extraordinarily Long Rental Car Company Name Incorporated Number 3",
+        "pickup_branch": "PLACEHOLDER Dallas Fort Worth International Airport Consolidated Rental Car Center, Terminal Shuttle Stop 4B, South Entrance",
+        "dropoff_branch": "PLACEHOLDER Dallas Fort Worth International Airport Consolidated Rental Car Center, Terminal Shuttle Stop 4B, South Entrance",
+        "pickup_time": "2026-11-25T18:00:00-06:00",
+        "dropoff_time": "2026-11-29T12:00:00-06:00",
+        "base_daily_rate": 5800,
+        "days": 4,
+        "base_total": 23200,
+        "airport_concession_fee": 2575,
+        "taxes": 3480,
+        "other_fees": 1600,
+        "additional_driver_fee": 5200,
+        "young_renter_fee": 12000,
+        "one_way_fee": 0,
+        "mileage_policy": {
+          "type": "unlimited"
+        },
+        "travel_to_branch": {
+          "minutes": 10,
+          "cost": 0,
+          "note": "PLACEHOLDER Take the free terminal shuttle from lower level, door 4, then walk about five minutes"
+        },
+        "car_class": "Midsize SUV",
+        "seats": 5,
+        "luggage_fit_note": "PLACEHOLDER Fits 4 carry-ons and 2 large suitcases",
+        "total_trip_cost": 48055,
+        "cancellation": {
+          "type": "free",
+          "free_until": "2026-11-23T18:00:00-06:00",
+          "fee": null,
+          "summary": "PLACEHOLDER Free cancellation until 48 hours before pickup"
+        },
+        "source": {
+          "name": "cached_snapshot",
+          "captured_at": "2026-11-20T13:15:00-08:00",
+          "environment": "fixture"
+        },
+        "rank": 3,
+        "status": "alternative",
+        "tags": [
+          "lowest_total_cost",
+          "closest_pickup",
+          "most_flexible_cancellation",
+          "free_shuttle",
+          "no_airport_fees",
+          "unlimited_miles",
+          "some_unknown_tag"
+        ],
+        "reason": "PLACEHOLDER This option is a very good choice because it has a remarkably low base rate, waives the airport concession recovery fee entirely, includes a free second driver, offers unlimited mileage, and the branch is open twenty-four hours a day so a late arrival is not a problem at all."
+      },
+      {
+        "option_id": "opt_d",
+        "brand": "PLACEHOLDER Extraordinarily Long Rental Car Company Name Incorporated Number 4",
+        "pickup_branch": "PLACEHOLDER Dallas Fort Worth International Airport Consolidated Rental Car Center, Terminal Shuttle Stop 4B, South Entrance",
+        "dropoff_branch": "PLACEHOLDER Dallas Fort Worth International Airport Consolidated Rental Car Center, Terminal Shuttle Stop 4B, South Entrance",
+        "pickup_time": "2026-11-25T18:00:00-06:00",
+        "dropoff_time": "2026-11-29T12:00:00-06:00",
+        "base_daily_rate": 4500,
+        "days": 4,
+        "base_total": 18000,
+        "airport_concession_fee": 0,
+        "taxes": 2700,
+        "other_fees": 600,
+        "additional_driver_fee": 4000,
+        "young_renter_fee": 10000,
+        "one_way_fee": 0,
+        "mileage_policy": {
+          "type": "unlimited"
+        },
+        "travel_to_branch": {
+          "minutes": 20,
+          "cost": 2200,
+          "note": "PLACEHOLDER Take the free terminal shuttle from lower level, door 4, then walk about five minutes"
+        },
+        "car_class": "Midsize SUV",
+        "seats": 5,
+        "luggage_fit_note": "PLACEHOLDER Fits 4 carry-ons and 2 large suitcases",
+        "total_trip_cost": 37500,
+        "cancellation": {
+          "type": "non_refundable",
+          "free_until": null,
+          "fee": null,
+          "summary": "PLACEHOLDER Pay now, no refund if you cancel"
+        },
+        "source": {
+          "name": "cached_snapshot",
+          "captured_at": "2026-11-20T13:15:00-08:00",
+          "environment": "fixture"
+        },
+        "rank": null,
+        "status": "not_a_fit",
+        "tags": [
+          "lowest_total_cost",
+          "closest_pickup",
+          "most_flexible_cancellation",
+          "free_shuttle",
+          "no_airport_fees",
+          "unlimited_miles",
+          "some_unknown_tag"
+        ],
+        "reason": "PLACEHOLDER This option is a very good choice because it has a remarkably low base rate, waives the airport concession recovery fee entirely, includes a free second driver, offers unlimited mileage, and the branch is open twenty-four hours a day so a late arrival is not a problem at all."
+      },
+      {
+        "option_id": "opt_e",
+        "brand": "PLACEHOLDER Extraordinarily Long Rental Car Company Name Incorporated Number 5",
+        "pickup_branch": "PLACEHOLDER Dallas Fort Worth International Airport Consolidated Rental Car Center, Terminal Shuttle Stop 4B, South Entrance",
+        "dropoff_branch": "PLACEHOLDER Dallas Fort Worth International Airport Consolidated Rental Car Center, Terminal Shuttle Stop 4B, South Entrance",
+        "pickup_time": "2026-11-25T18:00:00-06:00",
+        "dropoff_time": "2026-11-29T12:00:00-06:00",
+        "base_daily_rate": 4700,
+        "days": 4,
+        "base_total": 18800,
+        "airport_concession_fee": 0,
+        "taxes": 2820,
+        "other_fees": 800,
+        "additional_driver_fee": 4800,
+        "young_renter_fee": 10000,
+        "one_way_fee": 7500,
+        "mileage_policy": {
+          "type": "capped",
+          "cap_miles": 600,
+          "per_mile_cost": 25
+        },
+        "travel_to_branch": {
+          "minutes": 10,
+          "cost": 1400,
+          "note": "PLACEHOLDER Take the free terminal shuttle from lower level, door 4, then walk about five minutes"
+        },
+        "car_class": "Midsize SUV",
+        "seats": 5,
+        "luggage_fit_note": "PLACEHOLDER Fits 4 carry-ons and 2 large suitcases",
+        "total_trip_cost": 46120,
+        "cancellation": {
+          "type": "partial",
+          "free_until": null,
+          "fee": 2500,
+          "summary": "PLACEHOLDER $25 fee if you cancel"
+        },
+        "source": {
+          "name": "octotrip_mcp",
+          "captured_at": "2026-11-20T13:40:00-08:00",
+          "environment": "fixture"
+        },
+        "rank": null,
+        "status": "not_a_fit",
+        "tags": [
+          "lowest_total_cost",
+          "closest_pickup",
+          "most_flexible_cancellation",
+          "free_shuttle",
+          "no_airport_fees",
+          "unlimited_miles",
+          "some_unknown_tag"
+        ],
+        "reason": "PLACEHOLDER This option is a very good choice because it has a remarkably low base rate, waives the airport concession recovery fee entirely, includes a free second driver, offers unlimited mileage, and the branch is open twenty-four hours a day so a late arrival is not a problem at all."
+      },
+      {
+        "option_id": "opt_f",
+        "brand": "PLACEHOLDER Extraordinarily Long Rental Car Company Name Incorporated Number 6",
+        "pickup_branch": "PLACEHOLDER Dallas Fort Worth International Airport Consolidated Rental Car Center, Terminal Shuttle Stop 4B, South Entrance",
+        "dropoff_branch": "PLACEHOLDER Dallas Fort Worth International Airport Consolidated Rental Car Center, Terminal Shuttle Stop 4B, South Entrance",
+        "pickup_time": "2026-11-25T18:00:00-06:00",
+        "dropoff_time": "2026-11-29T12:00:00-06:00",
+        "base_daily_rate": 3800,
+        "days": 4,
+        "base_total": 15200,
+        "airport_concession_fee": 1687,
+        "taxes": 2280,
+        "other_fees": 1200,
+        "additional_driver_fee": 4800,
+        "young_renter_fee": 10800,
+        "one_way_fee": 0,
+        "mileage_policy": {
+          "type": "unlimited"
+        },
+        "travel_to_branch": {
+          "minutes": 10,
+          "cost": 0,
+          "note": "PLACEHOLDER Take the free terminal shuttle from lower level, door 4, then walk about five minutes"
+        },
+        "car_class": "Compact",
+        "seats": 5,
+        "luggage_fit_note": "PLACEHOLDER Fits about 2 carry-ons only",
+        "total_trip_cost": 35967,
+        "cancellation": {
+          "type": "free",
+          "free_until": "2026-11-24T18:00:00-06:00",
+          "fee": null,
+          "summary": "PLACEHOLDER Free cancellation until 24 hours before pickup"
+        },
+        "source": {
+          "name": "octotrip_mcp",
+          "captured_at": "2026-11-20T13:40:00-08:00",
+          "environment": "fixture"
+        },
+        "rank": null,
+        "status": "not_a_fit",
+        "tags": [
+          "lowest_total_cost",
+          "closest_pickup",
+          "most_flexible_cancellation",
+          "free_shuttle",
+          "no_airport_fees",
+          "unlimited_miles",
+          "some_unknown_tag"
+        ],
+        "reason": "PLACEHOLDER This option is a very good choice because it has a remarkably low base rate, waives the airport concession recovery fee entirely, includes a free second driver, offers unlimited mileage, and the branch is open twenty-four hours a day so a late arrival is not a problem at all."
+      },
+      {
+        "option_id": "opt_g",
+        "brand": "PLACEHOLDER Extraordinarily Long Rental Car Company Name Incorporated Number 7",
+        "pickup_branch": "PLACEHOLDER Dallas Fort Worth International Airport Consolidated Rental Car Center, Terminal Shuttle Stop 4B, South Entrance",
+        "dropoff_branch": "PLACEHOLDER Dallas Fort Worth International Airport Consolidated Rental Car Center, Terminal Shuttle Stop 4B, South Entrance",
+        "pickup_time": "2026-11-25T18:00:00-06:00",
+        "dropoff_time": "2026-11-29T12:00:00-06:00",
+        "base_daily_rate": 4400,
+        "days": 4,
+        "base_total": 17600,
+        "airport_concession_fee": 0,
+        "taxes": 2640,
+        "other_fees": 600,
+        "additional_driver_fee": 0,
+        "young_renter_fee": 10000,
+        "one_way_fee": 0,
+        "mileage_policy": {
+          "type": "unlimited"
+        },
+        "travel_to_branch": {
+          "minutes": 40,
+          "cost": 4500,
+          "note": "PLACEHOLDER Take the free terminal shuttle from lower level, door 4, then walk about five minutes"
+        },
+        "car_class": "Midsize SUV",
+        "seats": 5,
+        "luggage_fit_note": "PLACEHOLDER Fits 4 carry-ons and 2 large suitcases",
+        "total_trip_cost": 35340,
+        "cancellation": {
+          "type": "unknown",
+          "free_until": null,
+          "fee": null,
+          "summary": "PLACEHOLDER The company didn't share its cancellation terms"
+        },
+        "source": {
+          "name": "octotrip_mcp",
+          "captured_at": "2026-11-20T13:40:00-08:00",
+          "environment": "fixture"
+        },
+        "rank": null,
+        "status": "not_a_fit",
+        "tags": [
+          "lowest_total_cost",
+          "closest_pickup",
+          "most_flexible_cancellation",
+          "free_shuttle",
+          "no_airport_fees",
+          "unlimited_miles",
+          "some_unknown_tag"
+        ],
+        "reason": "PLACEHOLDER This option is a very good choice because it has a remarkably low base rate, waives the airport concession recovery fee entirely, includes a free second driver, offers unlimited mileage, and the branch is open twenty-four hours a day so a late arrival is not a problem at all."
+      }
+    ],
+    "winner_summary": {
+      "recommended_option_id": "opt_a",
+      "ranking_priority_used": "lowest_total_cost",
+      "total": 41320,
+      "obvious_option_id": "opt_c",
+      "savings_vs_obvious_option": 6735,
+      "one_line_explanation": "PLACEHOLDER This option is a very good choice because it has a remarkably low base rate, waives the airport concession recovery fee entirely, includes a free second driver, offers unlimited mileage, and the branch is open twenty-four hours a day so a late arrival is not a problem at all."
+    },
+    "audit_trail": [
+      {
+        "step_number": 1,
+        "step_name": "Read your trip",
+        "plain_language_finding": "PLACEHOLDER 4 travelers, 2 drivers (one under 25), Wed Nov 25 to Sun Nov 29, return to the same place, near DFW or Love Field. What matters most to you: lowest total cost.",
+        "timestamp": "2026-11-20T13:40:00-08:00",
+        "step_type": "request"
+      },
+      {
+        "step_number": 2,
+        "step_name": "Searched for cars",
+        "plain_language_finding": "PLACEHOLDER Asked OctoTrip for cars from 6 rental companies near DFW and Love Field.",
+        "timestamp": "2026-11-20T13:40:02-08:00",
+        "step_type": "search"
+      },
+      {
+        "step_number": 3,
+        "step_name": "Checked who answered",
+        "plain_language_finding": "PLACEHOLDER 5 of 6 rental companies answered. Rental Co F didn't respond in time, so I couldn't check it. That doesn't mean it has no cars.",
+        "timestamp": "2026-11-20T13:40:15-08:00",
+        "step_type": "coverage"
+      },
+      {
+        "step_number": 4,
+        "step_name": "Filled in missing prices",
+        "plain_language_finding": "PLACEHOLDER OctoTrip didn't return fees for Rental Co C and Rental Co D, so I used their prices saved at 1:15 PM.",
+        "timestamp": "2026-11-20T13:40:20-08:00",
+        "step_type": "source_fallback"
+      },
+      {
+        "step_number": 5,
+        "step_name": "Got full prices",
+        "plain_language_finding": "PLACEHOLDER Got the full price for 7 options, including airport fees, taxes, extra-driver and young-driver fees, plus the cost of getting to each branch.",
+        "timestamp": "2026-11-20T13:40:21-08:00",
+        "step_type": "pricing"
+      },
+      {
+        "step_number": 6,
+        "step_name": "Set aside options that don't fit",
+        "plain_language_finding": "PLACEHOLDER Set aside 4 options: one closes before pickup, one returns to a different airport, one is too small for luggage, and one is too far away.",
+        "timestamp": "2026-11-20T13:40:22-08:00",
+        "step_type": "filter"
+      },
+      {
+        "step_number": 7,
+        "step_name": "Picked the recommended car",
+        "plain_language_finding": "PLACEHOLDER Recommended because it has the lowest total cost, your current priority. It saves $67.35 compared with renting at the DFW airport counter.",
+        "timestamp": "2026-11-20T13:40:22-08:00",
+        "step_type": "ranking"
+      },
+      {
+        "step_number": 8,
+        "step_name": "Prepared the booking for you",
+        "plain_language_finding": "PLACEHOLDER Put together a summary for you to review before anything is booked.",
+        "timestamp": "2026-11-20T13:40:24-08:00",
+        "step_type": "confirmation"
+      }
+    ],
+    "confirmation": {
+      "confirmation_summary": {
+        "what": "PLACEHOLDER Midsize SUV (5 seats) from Rental Co A",
+        "where": "PLACEHOLDER Pick up and return at the Love Field neighborhood branch",
+        "dates": "PLACEHOLDER Wed, Nov 25, 6:00 PM to Sun, Nov 29, 12:00 PM (4 days)",
+        "total": 41320,
+        "cancellation_policy": "PLACEHOLDER Free cancellation until 24 hours before pickup",
+        "drivers": [
+          "PLACEHOLDER Driver 1, age 34",
+          "PLACEHOLDER Driver 2, age 23 (young driver fee applies)"
+        ]
+      },
+      "human_approved": true,
+      "approved_at": "2026-11-20T13:44:02-08:00",
+      "handoff_type": "simulated_booking",
+      "handoff_url": null
+    }
+  }
+}
