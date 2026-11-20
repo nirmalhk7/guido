@@ -216,5 +216,189 @@
     "not_approved_label": "Waiting for your OK. Nothing is booked yet.",
     "checkout_link_label": "Continue to {brand}'s checkout",
     "no_card_note": "I never see or store your card details."
+  },
+
+  "_ui_wording_note": "Everything below is wording only, added for the audit-trail page's sections and in-between states. No data fields.",
+
+  "common": {
+    "yes": "Yes",
+    "no": "No"
+  },
+
+  "page": {
+    "title": "Your rental car",
+    "agent_name": "Your car-finding agent",
+    "trip_line": "{start_area} · {pickup} to {return}"
+  },
+
+  "car_class_labels": {
+    "compact": "Compact",
+    "midsize": "Midsize",
+    "fullsize": "Full-size",
+    "midsize_suv": "Midsize SUV",
+    "fullsize_suv": "Full-size SUV",
+    "minivan": "Minivan"
+  },
+
+  "trip_summary": {
+    "heading": "Your trip",
+    "travelers": "{count} travelers",
+    "drivers": "{count} drivers, ages {ages}",
+    "young_driver_note": "Young driver fee applies",
+    "max_travel": "Up to {minutes} min to the branch",
+    "one_way_yes": "Can return somewhere else",
+    "one_way_no": "Return to the same place",
+    "assumptions_toggle": "See what I assumed",
+    "assumptions_hide": "Hide what I assumed"
+  },
+
+  "priority_selector": {
+    "group_label": "Rank options by what matters most"
+  },
+
+  "option_card": {
+    "total_caption": "total for your trip",
+    "car_line": "{car_class} · {seats} seats",
+    "strengths_label": "Strengths",
+    "core_rental": "Rental",
+    "core_fees_taxes": "Fees and taxes",
+    "core_travel": "Getting to the branch",
+    "breakdown_show": "See full price breakdown",
+    "breakdown_hide": "Hide price breakdown",
+    "breakdown_total": "Total",
+    "daily_rate_line": "{rate} a day × {days} days",
+    "includes_note": "Includes all fees and taxes, plus getting to the branch. Gas isn't included.",
+    "travel_line": "{minutes} min to get there",
+    "savings_line": "Saves {amount} compared with {brand}, the usual pick",
+    "costs_more_line": "{amount} more than {brand}, the usual pick",
+    "checked_line": "{source} · checked {when}",
+    "recommended_because_heading": "Why this one"
+  },
+
+  "alternatives": {
+    "heading": "Also good options",
+    "diff_more": "{amount} more than the recommended car",
+    "diff_less": "{amount} less than the recommended car",
+    "diff_same": "Same price as the recommended car"
+  },
+
+  "not_a_fit_group": {
+    "intro": "I looked at these, but each one misses something you need.",
+    "show": "Show {count} that don't fit",
+    "hide": "Hide the ones that don't fit"
+  },
+
+  "couldnt_check_group": {
+    "heading": "Couldn't fully check",
+    "intro": "These companies didn't give me complete prices, so they aren't compared above.",
+    "still_checking": "Still checking…"
+  },
+
+  "coverage_detail": {
+    "show": "See who I checked",
+    "hide": "Hide details",
+    "providers_heading": "Rental companies",
+    "sources_heading": "Where I looked for prices",
+    "source_outcome_labels": {
+      "used": "Used",
+      "partial": "Partly used",
+      "unavailable": "Couldn't reach",
+      "skipped": "Not used"
+    },
+    "still_checking_line": "Still checking {provider}. Here's what I have so far.",
+    "pending_label": "Still checking"
+  },
+
+  "how_i_decided": {
+    "summary": "{count} steps, from your request to the pick",
+    "open": "Show how I decided",
+    "close": "Hide how I decided",
+    "step_done": "Done",
+    "step_working": "Working on it",
+    "step_pending": "Not yet",
+    "priority_changed_step_name": "You changed what matters most",
+    "compare_show": "Compare all options side by side",
+    "compare_hide": "Hide comparison"
+  },
+
+  "freshness": {
+    "just_now": "just now",
+    "minutes_ago": "{count} min ago",
+    "hours_ago": "{count} hr ago",
+    "days_ago": "{count} days ago",
+    "old_price_label": "Older price",
+    "stale_banner": "Some prices were checked a while ago and may have changed."
+  },
+
+  "loading": {
+    "heading": "Finding the best car for your trip",
+    "subheading": "This usually takes under a minute. Here's what I'm doing.",
+    "results_so_far": "Results so far"
+  },
+
+  "outdated": {
+    "banner": "You changed your trip. These results are for your earlier details.",
+    "searching_again": "Searching again with your new details…",
+    "demo_note": "Demo: new searches aren't connected yet."
+  },
+
+  "empty_state_details": {
+    "searched_heading": "What I searched",
+    "searched_line": "{travelers} travelers, {pickup} to {return}, within {minutes} min of {airports}",
+    "why_heading": "Why nothing came up",
+    "nothing_fits_why": "Every car I found missed at least one of your needs:",
+    "no_cars_why": "The rental companies answered, but none have cars for these dates and places.",
+    "nothing_reachable_why": "None of the rental companies answered in time, so I couldn't check prices.",
+    "change_heading": "What could help",
+    "suggestion_wider_distance": "Allow a longer trip to the branch (now {minutes} min)",
+    "suggestion_allow_one_way": "Allow returning the car somewhere else",
+    "suggestion_different_car": "Try a different car size",
+    "suggestion_new_dates": "Try different dates or times",
+    "suggestion_try_later": "Try again in a few minutes"
+  },
+
+  "retry_form": {
+    "heading": "Try different details",
+    "pickup": "Pick up",
+    "return": "Return",
+    "max_travel": "Longest trip to the branch (minutes)",
+    "one_way": "OK to return the car somewhere else",
+    "car_size": "Car size",
+    "submit": "Search again",
+    "email_heading": "Or reply to the email",
+    "email_instruction": "Reply to the email with new dates and we'll search again.",
+    "email_placeholder": "PLACEHOLDER: reply address goes here"
+  },
+
+  "confirmation_flow": {
+    "intro": "Nothing is booked until you say so.",
+    "approve_note": "You won't be charged on this page.",
+    "what_line": "{car_class} ({seats} seats) from {brand}",
+    "where_same": "Pick up and return at {branch}",
+    "where_different": "Pick up at {pickup}, return at {dropoff}",
+    "dates_line": "{pickup} to {return} ({days} days)",
+    "driver_line": "Driver {number}, age {age}",
+    "young_driver_suffix": "(young driver fee applies)",
+    "approved_step_finding": "You approved booking {what} for {total}.",
+    "handoff_step_name": "Booking handed off",
+    "handoff_simulated_finding": "Completed a simulated booking for the demo. Nothing was paid and no card details were used.",
+    "handoff_checkout_finding": "Sent you to {brand}'s checkout to finish booking. I never see your card details.",
+    "simulated_done": "Demo booking done. Nothing was paid.",
+    "checkout_missing": "The checkout link isn't available yet. Please book on {brand}'s website."
+  },
+
+  "demo": {
+    "switcher_label": "Preview state",
+    "states": {
+      "results": "Results (ready to approve)",
+      "loading": "Loading",
+      "slow": "Slow company",
+      "stale": "Older prices",
+      "outdated": "Trip changed",
+      "nothing_fits": "Nothing fits",
+      "no_cars": "No cars found",
+      "unreachable": "Couldn't reach anyone",
+      "approved": "Already approved"
+    }
   }
 }

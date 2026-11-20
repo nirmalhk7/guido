@@ -1,6 +1,9 @@
 # Audit-trail page: UI plan
 
-Status: **Phase 1, plan only.** Nothing is built yet. Building starts after Rashmi says "go".
+Status: **Phase 2, building** (Rashmi said "go"). Decisions made: wording-only
+keys may be added to `contracts/display_fields.json` (no data fields change),
+and the Figma takeaways are confirmed below. Open questions 2–4 in §5 use my
+proposed defaults until Rashmi says otherwise.
 
 The page shows one trip result (see `contracts/`): answer first, then a short
 reason, then an expandable "How I decided". People open it from an email link,
@@ -13,14 +16,14 @@ JSON for now).
 ## 1. Figma references (page "Audt trail UI")
 
 The page has one section, "Audit trail UI inspiration", with three labeled
-groups. **The images have no "what to take" notes, and the file has no comments.**
-The takeaways below are my reading of each group's caption. ⚠️ Please confirm or correct them.
+groups. Takeaways below were **confirmed by Rashmi**. Take the idea and layout
+principle, not a copy.
 
-| Figma group | Reference images | Caption | What I propose to take (the idea, not the look) | Goes into |
-|---|---|---|---|---|
-| **Price breakdown** | Airbnb host view: "Guest paid" / "Host payout" itemized lists. Airbnb booking card: total on top, line items, Book button | "Price breakdown" | **Total first, big**, with a "total" qualifier. Then **plain line items** with amounts right-aligned and the **total row in bold**. A reassurance line under the action ("You won't be charged yet"). A note that the **price includes all fees and taxes**. Small "?" hints for confusing fees. | Recommended card, price breakdown, confirmation |
-| **Decision trail** | Amazon order tracking: vertical checklist with "See all updates". Amazon detail: timestamped event list. RV booking stepper: done / current / upcoming steps, with a collapsed mini-stepper | "Seeing decision trail: what did an agent do to get here" | A **vertical step timeline** with check marks for done steps. A **short summary first**, with a "See all steps" link that expands to **timestamped detail**. Clear **done / in progress / not yet** states, which also drive the loading state. A **compact collapsed version** of the steps. | "How I decided", loading state, confirmation progress |
-| **Ranking** | Credit Karma: two big scores, source name, "Updated on Dec 3", plain label badge ("Good" / "Excellent"), color scale with markers | "Clean ranking: why pick this option" | **One big number** (the total) as the hero. **Source and "updated" time right under it**. A **plain-word label** ("Recommended") instead of numbers. A **simple scale or bar showing where each option sits** (e.g. price range from cheapest to priciest), with labels so color isn't the only cue. | Recommended card, source badge, options list |
+| Figma group (images) | Rashmi's note: what to take | How it's applied | Goes into |
+|---|---|---|---|
+| **Price breakdown** ("Price breakdown - 1", "- 2", Airbnb) | How a price breakdown list is displayed. Use it for **each shortlisted option's breakdown, shown only when the user wants it**. | Under the highlighted total, show **only the core charges** (rental, fees and taxes, getting to the branch). Everything else is **collapsed by default**; expanding shows every charge line, right-aligned, with the **total row always visible** in bold. | Recommended card, alternatives, confirmation |
+| **Decision trail UI** ("Decision trail UI - 1/2/3", Amazon tracking, RV stepper) | How the agent shortlisted options, step by step. **Must not look overwhelming.** | A **collapsible panel that stays closed unless the user opens it**. Inside: a calm vertical timeline with check marks and times. The done / working / not-yet step states are reused for the loading state. | "How I decided", loading state |
+| **Ranking UI** ("Ranking UI", Credit Karma) | Visual patterns for marking **which option is recommended and why**, with each option's total price. | The **total is the big number** on every option. A plain-word **"Recommended" label** (icon + text) on the top pick, a **"why" line** right under it, and the source and "checked" time beneath. Alternatives use the same pattern, smaller, with strength tags. | Recommended card, alternatives list, "why" line |
 
 Not used: the "Guido logo" page (you said to use only the audit-trail page).
 
