@@ -1,0 +1,95 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Guido Browserbase Rental Search",
+    "version": "1.0.0"
+  },
+  "servers": [{ "url": "https://api.browserbase.com" }],
+  "security": [{ "browserbaseKey": [] }],
+  "paths": {
+    "/v1/agents/runs": {
+      "post": {
+        "operationId": "start_rental_search",
+        "summary": "Start a Browserbase run to read rental quotes from Hertz, Avis, and Enterprise",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "task": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Read-only rental search task with pickup and return details and vehicle requirements."
+                  },
+                  "browserSettings": {
+                    "type": "object",
+                    "properties": {
+                      "allowedDomains": {
+                        "type": "array",
+                        "items": { "type": "string", "enum": ["hertz.com", "avis.com", "enterprise.com"] },
+                        "minItems": 3,
+                        "maxItems": 3
+                      }
+                    },
+                    "required": ["allowedDomains"],
+                    "additionalProperties": false
+                  },
+                  "resultSchema": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "description": "JSON Schema for each vendor's status, source URL, and verified rental quotes."
+                  }
+                },
+                "required": ["task", "browserSettings", "resultSchema"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Run accepted",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Run" } } }
+          }
+        }
+      }
+    },
+    "/v1/agents/runs/{runId}": {
+      "get": {
+        "operationId": "get_rental_search",
+        "summary": "Check a Browserbase rental search and read its result when completed",
+        "parameters": [
+          { "name": "runId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Run status and result",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Run" } } }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "browserbaseKey": { "type": "apiKey", "in": "header", "name": "X-BB-API-Key" }
+    },
+    "schemas": {
+      "Run": {
+        "type": "object",
+        "properties": {
+          "runId": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["PENDING", "RUNNING", "COMPLETED", "FAILED", "STOPPED", "TIMED_OUT", "PAUSED"]
+          },
+          "result": { "type": "object", "additionalProperties": true },
+          "cause": { "type": "object", "additionalProperties": true }
+        },
+        "required": ["runId", "status"]
+      }
+    }
+  }
+}

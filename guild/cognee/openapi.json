@@ -1,0 +1,146 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Guido Cognee Cloud Memory",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/add_text": {
+      "post": {
+        "operationId": "add_note",
+        "summary": "Store one requested memory note in Guido's Cognee dataset before indexing it",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["datasetName", "textData"],
+                "properties": {
+                  "datasetName": { "type": "string", "enum": ["guido_tokensandhackathon"] },
+                  "textData": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 1,
+                    "items": { "type": "string", "minLength": 1, "maxLength": 2000 }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cognee ingestion result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cognify": {
+      "post": {
+        "operationId": "index_notes",
+        "summary": "Index notes just stored in Guido's Cognee dataset so they can be recalled",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["datasets", "runInBackground"],
+                "properties": {
+                  "datasets": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 1,
+                    "items": { "type": "string", "enum": ["guido_tokensandhackathon"] }
+                  },
+                  "runInBackground": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Pass false to wait for indexing to finish."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cognee pipeline results keyed by dataset ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": { "status": { "type": "string" } },
+                    "additionalProperties": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recall": {
+      "post": {
+        "operationId": "recall",
+        "summary": "Retrieve relevant notes from Guido's Cognee dataset across Guild chats",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["datasets", "query", "searchType", "topK"],
+                "properties": {
+                  "datasets": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 1,
+                    "items": { "type": "string", "enum": ["guido_tokensandhackathon"] }
+                  },
+                  "query": { "type": "string", "minLength": 1, "maxLength": 2000 },
+                  "searchType": { "type": "string", "enum": ["CHUNKS"] },
+                  "topK": { "type": "integer", "minimum": 5, "maximum": 5 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Retrieved Cognee memory records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "source": { "type": "string" },
+                      "text": { "type": "string", "nullable": true }
+                    },
+                    "additionalProperties": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

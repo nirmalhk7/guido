@@ -4,15 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "eve dev --name Guido --no-default-extensions",
-    "build": "eve build",
     "test": "node --test",
     "typecheck": "tsc"
   },
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "dependencies": {
-    "ai": "7.0.172",
-    "eve": "1.2.0",
+    "singlestore-nodejs": "1.0.1",
     "zod": "4.6.7"
   },
   "devDependencies": {

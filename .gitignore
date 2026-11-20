@@ -1,7 +1,5 @@
 node_modules/
-.eve/
 .vercel/
-.output/
 .firedrill-local/
 .env*
 !.env.example

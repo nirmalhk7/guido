@@ -1,62 +1,48 @@
 # Guido
 
-Guido is a local terminal agent for one AgentMail inbox. It can list recent
-messages, read their plain text, summarize them, and draft replies in chat.
-Guido's mailbox tools are read-only.
+Guido runs on Guild as `guido-smoke` in the
+`nirmalhk7~tokensandhackathon` workspace. It drafts replies from a synthetic
+inbox, uses Browserbase to check Hertz, Avis, and Enterprise directly,
+and uses Cognee Cloud for durable notes. The Guild agent recipe lives in
+[guild/smoke](guild/smoke).
 
-## Connect an inbox
+## Rental-car search
 
-1. Use an existing AgentMail inbox or [create one](https://docs.agentmail.to/knowledge-base/creating-first-inbox)
-   with the display name **Guido**. Copy its `inbox_id` and get an AgentMail API key.
-2. Install dependencies with Node.js 24 or later and copy the environment template.
+Guido uses its existing OpenAI model on Guild to collect trip details and
+compare quotes. Browserbase browses the three vendors' public rental forms and
+returns the prices or an outcome for each site. Searches stop before booking.
 
-   ```sh
-   npm ci
-   cp .env.example .env.local
-   ```
+Connect a Browserbase API key to `nirmalhk7~guido-browserbase` in Guild and
+grant it to Guido. Guild injects the key as `X-BB-API-Key`. The integration
+exposes only the start and status operations defined in
+[`guild/browserbase/openapi.json`](guild/browserbase/openapi.json).
 
-3. In `.env.local`, set `AGENTMAIL_API_KEY`, `AGENTMAIL_INBOX_ID`, and
-   `OPENAI_API_KEY`. Guido calls GPT-5 mini directly through the OpenAI API.
-4. Run `npm run dev` and ask, “Summarize my five newest emails and draft a reply
-   to the most urgent one.”
-
-Message previews and plain-text body excerpts retrieved by Guido are sent to
-the selected model provider and may be saved in local Eve session history.
+In a fresh Guild chat, ask Guido for automatic rentals at SFO on future dates
+with a total budget in USD. Check the trace for a Browserbase start and status
+call using the same run ID. Check that the reply cites vendor prices and
+reports the outcome for Hertz, Avis, and Enterprise individually.
 
 ## Connect Cognee memory
 
-Set `COGNEE_BASE_URL` in `.env.local` to the root URL of your Cognee instance.
-It must support the `/api/v1/remember` and `/api/v1/recall` endpoints.
-
-- **[Cognee Cloud](https://docs.cognee.ai/cognee-cloud/http-api)**. Use your
-  workspace URL and set `COGNEE_API_KEY` and `COGNEE_TENANT_ID` from its API Keys page.
-- **[Self-hosted Cognee](https://docs.cognee.ai/api-reference/introduction)**.
-  Use the server URL, such as `http://localhost:8000` for a local instance.
-  Set `COGNEE_API_TOKEN` if your server requires Bearer authentication.
-
-Guido looks up relevant memories before each text turn, sending the current
-user text as the search query. Cognee may retain search queries in its history.
-Guido saves long-term notes when you ask it to remember something. Mailbox tool
-output and transcripts are excluded from automatic ingestion. Notes live in a
-`guido_memory_*` dataset scoped to the Eve caller, shared across that caller's
-chats. Setting no Cognee URL disables long-term memory. Eve keeps the active
-conversation history separately.
+Create a key in your Cognee Cloud workspace and connect it under
+**Credentials** on the installed Guild agent. Choose **Dedicated to this
+agent** for `guido-cognee`. In a new Guild chat, ask Guido to remember a
+unique test phrase. After it confirms the save, open a second chat and ask
+for the phrase. Check the session for a successful Cognee recall call.
 
 ## Simulate Guido with Firedrill
 
-The inbox drill asks Guido to read synthetic mail and draft a reply in chat.
-It returns the draft and the recorded Eve tool outcomes for scoring. See the
-[Firedrill setup guide](firedrill/README.md) to run it in your workspace.
+The inbox drill asks Guido to draft a reply to synthetic mail. The chat drill
+reads one synthetic Slack channel and one synthetic Discord channel, then asks
+Guido to summarize both in Guild. See the [Firedrill setup guide](firedrill/README.md).
 
 ## Verify locally
 
 ```sh
+npm ci
 npm test
 npm run typecheck
-npm run build
 ```
 
-Tests intercept AgentMail and Cognee HTTP requests. For a live mail check, ask
-Guido to list the latest message and open it by ID. For a live memory check, tell
-Guido “Remember that I prefer short subject lines.” Start a new chat and ask
-“What is my email subject preference?”
+The tests check the Guild Cognee integration and simulate the Guild and
+Firedrill API responses. They need no live credentials.

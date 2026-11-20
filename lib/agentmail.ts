@@ -19,16 +19,19 @@ export interface Message extends MessageSummary {
   extracted_text?: string;
 }
 
-export async function getAgentMail<T>(
-  options: { messageId?: string; query?: URLSearchParams; signal?: AbortSignal },
-): Promise<T> {
+type MailRequest = { signal?: AbortSignal } & (
+  | { messageId?: string; query?: URLSearchParams; reply?: never }
+  | { messageId: string; query?: never; reply: { to: string; text: string; idempotencyKey: string } }
+);
+
+async function requestAgentMail<T>(options: MailRequest): Promise<T> {
   const apiKey = process.env.AGENTMAIL_API_KEY?.trim();
   const inboxId = process.env.AGENTMAIL_INBOX_ID?.trim();
   if (!apiKey || !inboxId) {
     throw new Error("Set AGENTMAIL_API_KEY and AGENTMAIL_INBOX_ID in .env.local.");
   }
 
-  const { messageId, query, signal } = options;
+  const { messageId, query, signal, reply } = options;
   if (messageId !== undefined && (!messageId.trim() || messageId === "." || messageId === "..")) {
     throw new Error("Invalid message ID.");
   }
@@ -39,9 +42,18 @@ export async function getAgentMail<T>(
   if (messageId !== undefined) url.pathname += `/${encodeURIComponent(messageId)}`;
   if (query) url.search = query.toString();
 
+  const headers = new Headers({ Authorization: `Bearer ${apiKey}`, Accept: "application/json" });
+  if (reply) {
+    url.pathname += "/reply";
+    headers.set("Content-Type", "application/json");
+    headers.set("Idempotency-Key", reply.idempotencyKey);
+  }
+
   const timeout = AbortSignal.timeout(15_000);
   const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
+    method: reply ? "POST" : "GET",
+    headers,
+    body: reply ? JSON.stringify({ to: reply.to, text: reply.text }) : undefined,
     redirect: "error",
     signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
   });
@@ -49,4 +61,19 @@ export async function getAgentMail<T>(
     throw new Error(`AgentMail request failed (HTTP ${response.status}).`);
   }
   return response.json();
+}
+
+export function getAgentMail<T>(options: { messageId?: string; query?: URLSearchParams; signal?: AbortSignal }) {
+  return requestAgentMail<T>(options);
+}
+
+export function replyAgentMail(options: {
+  messageId: string;
+  to: string;
+  text: string;
+  idempotencyKey: string;
+  signal?: AbortSignal;
+}) {
+  const { messageId, signal, ...reply } = options;
+  return requestAgentMail<{ message_id: string; thread_id: string }>({ messageId, signal, reply });
 }
