@@ -10,34 +10,7 @@ function script(name) {
   return path;
 }
 
-test("the Firedrill driver runs Guido against synthetic AgentMail and returns tool evidence", () => {
-  const steps = [
-    { id: "bad", kind: "event", session: "drill-1", input: {} },
-    { id: "draft", kind: "task", session: "drill-1", input: { message: "Draft a reply." } },
-    { id: "follow-up", kind: "message", session: "drill-1", input: "What was the code?" },
-  ];
-  const output = execFileSync(process.execPath, [script("runner"), "--smoke"], {
-    input: steps.map(JSON.stringify).join("\n") + "\n",
-    encoding: "utf8",
-    timeout: 135_000,
-  });
-  const [ready, ...lines] = output.trim().split("\n");
-  assert.equal(ready, "GUIDO_FIREDRILL_READY");
-  const [bad, draft, followUp] = lines.map(JSON.parse);
-  assert.equal(bad.id, "bad");
-  assert.match(bad.error, /Unsupported/);
-  assert.equal(draft.id, "draft");
-  assert.match(draft.output.reply, /CEDAR-482/);
-  assert.deepEqual(draft.output.tools, [
-    { name: "list_messages", outcome: "completed" },
-    { name: "read_message", outcome: "completed" },
-  ]);
-  assert.equal(followUp.id, "follow-up");
-  assert.match(followUp.output.reply, /CEDAR-482/);
-  assert.deepEqual(followUp.output.tools, []);
-});
-
-test("descriptor and local plan agree on the isolated runner and model credential", () => {
+test("descriptor and local plan agree on the isolated runner and Guild credential", () => {
   const prepare = (...args) => JSON.parse(execFileSync(process.execPath, [script("prepare"), ...args], {
     encoding: "utf8",
   }));
@@ -50,9 +23,9 @@ test("descriptor and local plan agree on the isolated runner and model credentia
   assert.equal(plan.driver.profile, descriptor.driver.profile);
   assert.deepEqual(plan.services[0].command.args, ["firedrill/runner.mjs"]);
   assert.equal(plan.services[0].per_drill, true);
-  assert.deepEqual(plan.services[0].local_secret_env, ["OPENAI_API_KEY"]);
+  assert.deepEqual(plan.services[0].local_secret_env, ["GUILD_API_KEY"]);
   assert.deepEqual(descriptor.services[0].configuration, [
-    { name: "OPENAI_API_KEY", phase: "runtime", secret: true, required: true },
+    { name: "GUILD_API_KEY", phase: "runtime", secret: true, required: true },
   ]);
 });
 
@@ -72,14 +45,83 @@ test("scenario and world pin their Firedrill library references", () => {
     origin: "native_library", kind: "scenario", id: "scenario-version", revision: 3, digest,
   }]);
   assert.equal(world.execution.repetitions, 1);
-  assert.deepEqual(world.configuration_names, [{ name: "OPENAI_API_KEY", phase: "runtime" }]);
+  assert.deepEqual(world.configuration_names, [{ name: "GUILD_API_KEY", phase: "runtime" }]);
 });
 
-test("the live Firedrill runner requires an OpenAI API key", () => {
+test("the live Firedrill runner requires a Guild API key", () => {
   assert.throws(() => execFileSync(process.execPath, [script("runner")], {
     encoding: "utf8",
-    env: { ...process.env, OPENAI_API_KEY: "", AI_GATEWAY_API_KEY: "" },
+    env: { ...process.env, GUILD_API_KEY: "" },
     timeout: 5_000,
     stdio: "pipe",
-  }), (error) => error.status === 1 && /Set OPENAI_API_KEY/.test(error.stderr));
+  }), (error) => error.status === 1 && /Set GUILD_API_KEY/.test(error.stderr));
+});
+
+test("chat descriptor, world and plan bind both simulator operations", () => {
+  const prepare = (...args) => JSON.parse(execFileSync(process.execPath, [script("prepare"), "chat", ...args], {
+    encoding: "utf8",
+  }));
+  const digest = "c".repeat(64);
+  const descriptor = prepare("descriptor");
+  const plan = prepare("plan", digest);
+  const scenario = prepare("scenario", "evaluation-version", "1", digest, "C01GENERAL1", "147000000000000001");
+  const world = prepare("world", "scenario-version", "1", digest, "slack-version", digest, "discord-version", digest);
+
+  assert.deepEqual(descriptor.dependencies, [
+    { alias: "slack", service_alias: "guido", protocol: "http", mode: "synthetic", operations: ["conversations.history"] },
+    { alias: "discord", service_alias: "guido", protocol: "http", mode: "synthetic", operations: ["messages.list"] },
+  ]);
+  assert.deepEqual(plan.services[0].dependency_env, [
+    { alias: "slack", name: "GUIDO_SLACK_INVOKE_URL", url: "invoke" },
+    { alias: "discord", name: "GUIDO_DISCORD_INVOKE_URL", url: "invoke" },
+  ]);
+  assert.deepEqual(world.dependencies, [
+    { alias: "slack", mode: "simulated", tool_version_id: "slack-version", service_key: "slack", contract_digest: digest, operations: ["conversations.history"], seed_id: null },
+    { alias: "discord", mode: "simulated", tool_version_id: "discord-version", service_key: "discord", contract_digest: digest, operations: ["messages.list"], seed_id: null },
+  ]);
+  assert.deepEqual(world.configuration_names, [
+    { name: "GUILD_API_KEY", phase: "runtime" },
+    { name: "GUIDO_SLACK_INVOKE_URL", phase: "runtime" },
+    { name: "GUIDO_DISCORD_INVOKE_URL", phase: "runtime" },
+  ]);
+  assert.deepEqual(descriptor.services[0].configuration.map(({ name }) => name),
+    world.configuration_names.map(({ name }) => name));
+  assert.equal(plan.services[0].per_drill, true);
+  assert.equal(scenario.target_input.input.slackChannelId, "C01GENERAL1");
+  assert.equal(scenario.target_input.input.discordChannelId, "147000000000000001");
+});
+
+test("the Firedrill driver sends simulator reads to Guido on Guild and continues the same session", () => {
+  const fixture = new URL("../firedrill/fixtures/guild-api.mjs", import.meta.url);
+  const message = "Summarize the simulated channels.";
+  const steps = [
+    { id: "bad", kind: "event", session: "drill-1", input: {} },
+    { id: "summary", kind: "task", session: "drill-1", input: {
+      message, slackChannelId: "C01GENERAL1", discordChannelId: "147000000000000001",
+    } },
+    { id: "follow-up", kind: "message", session: "drill-1", input: "Which channel had the deadline?" },
+  ];
+  const stdout = execFileSync(process.execPath, ["--import", fixture.href, script("runner")], {
+    input: steps.map((step) => JSON.stringify(step)).join("\n") + "\n",
+    encoding: "utf8",
+    timeout: 10_000,
+    env: {
+      ...process.env,
+      GUILD_API_KEY: "test-id:test-secret",
+      GUIDO_SLACK_INVOKE_URL: "http://127.0.0.1:8001/test-key/slack/v1/invoke",
+      GUIDO_DISCORD_INVOKE_URL: "http://127.0.0.1:8001/test-key/discord/v1/invoke",
+    },
+  });
+  const [ready, ...lines] = stdout.trim().split("\n");
+  assert.equal(ready, "GUIDO_FIREDRILL_READY");
+  const [bad, summary, followUp] = lines.map(JSON.parse);
+  assert.match(bad.error, /Unsupported/);
+  assert.deepEqual(summary, { id: "summary", output: {
+    reply: "Slack: SLACK-482. Discord: DISCORD-953.",
+    reads: [
+      { platform: "slack", outcome: "completed" },
+      { platform: "discord", outcome: "completed" },
+    ],
+  } });
+  assert.deepEqual(followUp, { id: "follow-up", output: { reply: "Discord.", reads: [] } });
 });
