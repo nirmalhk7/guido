@@ -1,10 +1,102 @@
 {
-  "_how_to_edit": "This is the ONE place for what the audit-trail page shows and how it's worded. To hide a data point, delete its entry or set \"show\": false. To reorder, move the entry up or down in its list. To rename, change \"label\". \"field\" must match a field name in trip_result.schema.json; dots mean a field inside another one (e.g. travel_to_branch.minutes). \"format\" tells the page how to display the value: text, currency, minutes, datetime, date, number, list, mileage, yes_no.",
+  "_how_to_edit": "This is the ONE place for what the audit-trail page shows and how it's worded. To hide a data point, delete its entry or set \"show\": false. To reorder, move the entry up or down in its list. To rename, change \"label\". \"field\" must match a field name in trip_result.schema.json; dots mean a field inside another one (e.g. travel_to_branch.minutes). \"format\" tells the page how to display the value: text, currency (value is in CENTS, the page divides by 100), minutes, datetime, date, number, list, mileage, yes_no, status, priority, tags, cancellation, source, environment. Words in {curly_braces} are filled in by the page.",
 
   "status_labels": {
-    "recommended": "Best match",
+    "recommended": "Recommended",
     "alternative": "Also a good option",
     "not_a_fit": "Doesn't fit your trip"
+  },
+
+  "ranking_priorities": {
+    "_note": "Order here = order in the picker. recommended_because is used in the ranking step of the audit trail and swapped in when the user changes priority.",
+    "default": "lowest_total_cost",
+    "picker_label": "What matters most?",
+    "options": [
+      {
+        "key": "lowest_total_cost",
+        "label": "Lowest total cost",
+        "recommended_because": "Recommended because it has the lowest total cost, your current priority."
+      },
+      {
+        "key": "closest_pickup",
+        "label": "Closest pickup",
+        "recommended_because": "Recommended because it's the quickest to get to, your current priority."
+      },
+      {
+        "key": "most_flexible_cancellation",
+        "label": "Most flexible cancellation",
+        "recommended_because": "Recommended because it's the easiest to cancel, your current priority."
+      }
+    ],
+    "changed_note": "You changed what matters most to {priority_label}. The recommendation updated."
+  },
+
+  "tag_labels": {
+    "_note": "Options send tag keys; this is the wording. A key not listed here is not shown.",
+    "lowest_total_cost": "Lowest total cost",
+    "closest_pickup": "Closest pickup",
+    "most_flexible_cancellation": "Most flexible cancellation",
+    "free_cancellation": "Free cancellation",
+    "free_shuttle": "Free shuttle",
+    "no_airport_fees": "No airport fees",
+    "unlimited_miles": "Unlimited miles"
+  },
+
+  "environment_labels": {
+    "live": "Live prices",
+    "sandbox": "Test prices (not bookable)",
+    "fixture": "Sample prices, not real quotes",
+    "unavailable": "Couldn't get prices"
+  },
+
+  "environment_banners": {
+    "_note": "Shown at the top of the page based on data_source.environment. live has no banner.",
+    "sandbox": "These prices come from a test system. They're realistic but can't be booked.",
+    "fixture": "These are made-up sample prices for this demo. They are not real quotes.",
+    "unavailable": "I couldn't reach any rental companies just now. That doesn't mean there are no cars. Try again in a few minutes."
+  },
+
+  "source_labels": {
+    "_note": "Friendly names for the sources in data_sources.json.",
+    "octotrip_mcp": "OctoTrip",
+    "browser_agent": "the rental companies' websites",
+    "scraping_tool": "the rental companies' websites",
+    "cached_snapshot": "prices saved earlier",
+    "placeholder_sample": "sample data",
+    "manual_file": "prices entered by hand"
+  },
+
+  "data_source": {
+    "prices_as_of": "Prices from {source_label}, checked {captured_at}",
+    "mixed_sources_note": "Some prices came from {source_label}, checked {captured_at}."
+  },
+
+  "coverage": {
+    "heading": "Who I could check",
+    "summary": "{responded} of {total} rental companies answered",
+    "all_answered": "All {total} rental companies answered",
+    "provider_result_labels": {
+      "complete": "Checked",
+      "partial": "Partly checked",
+      "no_cars": "No cars for your dates",
+      "unavailable": "Couldn't check"
+    },
+    "reason_labels": {
+      "timed_out": "didn't respond in time",
+      "no_access": "we don't have access yet",
+      "error": "had a technical problem",
+      "missing_fees": "didn't include all fees",
+      "incomplete_data": "sent incomplete details",
+      "not_set_up": "isn't set up yet"
+    },
+    "unavailable_note": "Couldn't check doesn't mean no cars. It means I couldn't get an answer."
+  },
+
+  "empty_states": {
+    "_note": "The page picks one of these when there's no recommendation.",
+    "nothing_fits": "I found cars, but none fit your trip. Here's why each one was set aside.",
+    "no_cars_found": "The rental companies I checked have no cars for these dates.",
+    "nothing_reachable": "I couldn't reach any rental companies just now. That doesn't mean there are no cars. Try again in a few minutes."
   },
 
   "handoff_labels": {
@@ -17,21 +109,24 @@
     "capped": "{cap_miles} miles included, then {per_mile_cost} per mile"
   },
 
-  "data_source": {
-    "real_label": "Prices from {data_source}, checked {captured_at}",
-    "placeholder_label": "Sample prices, not real quotes",
-    "placeholder_banner": "These are made-up sample prices for this demo. They are not real quotes."
+  "cancellation_labels": {
+    "free_until_pickup": "Free cancellation up to pickup",
+    "free_until": "Free cancellation until {free_until}",
+    "partial": "{fee} fee to cancel",
+    "non_refundable": "No refund if you cancel",
+    "unknown": "Cancellation terms not shared"
   },
 
   "layer_1_answer": {
-    "heading": "Your best match",
-    "_note": "Plain field names here come from the recommended option. Names starting with winner_summary. come from the winner summary.",
+    "heading": "Recommended for your trip",
+    "_note": "Plain field names here come from the recommended option. Names starting with winner_summary. or trip_request. come from those sections.",
     "fields": [
       { "field": "brand", "label": "Company", "format": "text", "show": true },
       { "field": "car_class", "label": "Car", "format": "text", "show": true },
       { "field": "pickup_branch", "label": "Pick up at", "format": "text", "show": true },
       { "field": "winner_summary.total", "label": "Total for your trip", "format": "currency", "show": true },
-      { "field": "winner_summary.savings_vs_obvious_option", "label": "You save", "format": "currency", "show": true }
+      { "field": "winner_summary.savings_vs_obvious_option", "label": "You save", "format": "currency", "show": true },
+      { "field": "trip_request.ranking_priority", "label": "Picked for", "format": "priority", "show": true }
     ]
   },
 
@@ -52,7 +147,10 @@
     },
     "comparison_table": {
       "heading": "Every option I looked at",
-      "not_a_fit_style": "greyed_out",
+      "groups": [
+        { "statuses": ["recommended", "alternative"], "heading": "Options that fit", "style": "normal", "sort": "rank" },
+        { "statuses": ["not_a_fit"], "heading": "Doesn't fit your trip", "style": "greyed_out", "sort": "total_trip_cost" }
+      ],
       "fields": [
         { "field": "status", "label": "", "format": "status", "show": true },
         { "field": "brand", "label": "Company", "format": "text", "show": true },
@@ -77,7 +175,11 @@
         { "field": "travel_to_branch.cost", "label": "Cost to get there", "format": "currency", "show": true },
         { "field": "travel_to_branch.note", "label": "How to get there", "format": "text", "show": false },
         { "field": "total_trip_cost", "label": "Total trip cost", "format": "currency", "show": true },
-        { "field": "tags", "label": "", "format": "list", "show": true },
+        { "field": "cancellation", "label": "Cancellation", "format": "cancellation", "show": true },
+        { "field": "source.name", "label": "Prices from", "format": "source", "show": true },
+        { "field": "source.captured_at", "label": "Checked at", "format": "datetime", "show": true },
+        { "field": "source.environment", "label": "Price type", "format": "environment", "show": false },
+        { "field": "tags", "label": "", "format": "tags", "show": true },
         { "field": "reason", "label": "Why", "format": "text", "show": true }
       ]
     }
@@ -86,6 +188,7 @@
   "assumptions": {
     "heading": "What I assumed",
     "fields": [
+      { "field": "trip_request.ranking_priority", "label": "What matters most", "format": "priority", "show": true },
       { "field": "trip_request.airports", "label": "Airports", "format": "list", "show": true },
       { "field": "trip_request.pickup_datetime", "label": "Pick up", "format": "datetime", "show": true },
       { "field": "trip_request.return_datetime", "label": "Return", "format": "datetime", "show": true },
@@ -111,6 +214,7 @@
     "change_button": "Change something",
     "approved_label": "You approved this on {approved_at}",
     "not_approved_label": "Waiting for your OK. Nothing is booked yet.",
+    "checkout_link_label": "Continue to {brand}'s checkout",
     "no_card_note": "I never see or store your card details."
   }
 }
