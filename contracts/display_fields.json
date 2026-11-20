@@ -1,0 +1,116 @@
+{
+  "_how_to_edit": "This is the ONE place for what the audit-trail page shows and how it's worded. To hide a data point, delete its entry or set \"show\": false. To reorder, move the entry up or down in its list. To rename, change \"label\". \"field\" must match a field name in trip_result.schema.json; dots mean a field inside another one (e.g. travel_to_branch.minutes). \"format\" tells the page how to display the value: text, currency, minutes, datetime, date, number, list, mileage, yes_no.",
+
+  "status_labels": {
+    "recommended": "Best match",
+    "alternative": "Also a good option",
+    "not_a_fit": "Doesn't fit your trip"
+  },
+
+  "handoff_labels": {
+    "rental_company_checkout": "Finish booking on the rental company's site",
+    "simulated_booking": "Demo booking (simulated, nothing was paid)"
+  },
+
+  "mileage_labels": {
+    "unlimited": "Unlimited miles",
+    "capped": "{cap_miles} miles included, then {per_mile_cost} per mile"
+  },
+
+  "data_source": {
+    "real_label": "Prices from {data_source}, checked {captured_at}",
+    "placeholder_label": "Sample prices, not real quotes",
+    "placeholder_banner": "These are made-up sample prices for this demo. They are not real quotes."
+  },
+
+  "layer_1_answer": {
+    "heading": "Your best match",
+    "_note": "Plain field names here come from the recommended option. Names starting with winner_summary. come from the winner summary.",
+    "fields": [
+      { "field": "brand", "label": "Company", "format": "text", "show": true },
+      { "field": "car_class", "label": "Car", "format": "text", "show": true },
+      { "field": "pickup_branch", "label": "Pick up at", "format": "text", "show": true },
+      { "field": "winner_summary.total", "label": "Total for your trip", "format": "currency", "show": true },
+      { "field": "winner_summary.savings_vs_obvious_option", "label": "You save", "format": "currency", "show": true }
+    ]
+  },
+
+  "layer_2_reason": {
+    "heading": "Why this one",
+    "field": "winner_summary.one_line_explanation"
+  },
+
+  "layer_3_how_i_decided": {
+    "toggle_label": "How I decided",
+    "timeline": {
+      "heading": "What I did",
+      "fields": [
+        { "field": "step_name", "label": "Step", "format": "text", "show": true },
+        { "field": "plain_language_finding", "label": "What I found", "format": "text", "show": true },
+        { "field": "timestamp", "label": "Time", "format": "datetime", "show": false }
+      ]
+    },
+    "comparison_table": {
+      "heading": "Every option I looked at",
+      "not_a_fit_style": "greyed_out",
+      "fields": [
+        { "field": "status", "label": "", "format": "status", "show": true },
+        { "field": "brand", "label": "Company", "format": "text", "show": true },
+        { "field": "pickup_branch", "label": "Pick up", "format": "text", "show": true },
+        { "field": "dropoff_branch", "label": "Return", "format": "text", "show": true },
+        { "field": "pickup_time", "label": "Pick-up time", "format": "datetime", "show": false },
+        { "field": "dropoff_time", "label": "Return time", "format": "datetime", "show": false },
+        { "field": "car_class", "label": "Car", "format": "text", "show": true },
+        { "field": "seats", "label": "Seats", "format": "number", "show": true },
+        { "field": "luggage_fit_note", "label": "Luggage", "format": "text", "show": true },
+        { "field": "base_daily_rate", "label": "Daily rate", "format": "currency", "show": true },
+        { "field": "days", "label": "Days", "format": "number", "show": false },
+        { "field": "base_total", "label": "Rental price", "format": "currency", "show": true },
+        { "field": "airport_concession_fee", "label": "Airport fees", "format": "currency", "show": true },
+        { "field": "taxes", "label": "Taxes", "format": "currency", "show": true },
+        { "field": "other_fees", "label": "Other fees", "format": "currency", "show": true },
+        { "field": "additional_driver_fee", "label": "Extra driver", "format": "currency", "show": true },
+        { "field": "young_renter_fee", "label": "Young driver fee", "format": "currency", "show": true },
+        { "field": "one_way_fee", "label": "One-way fee", "format": "currency", "show": true },
+        { "field": "mileage_policy", "label": "Miles", "format": "mileage", "show": true },
+        { "field": "travel_to_branch.minutes", "label": "Time to get there", "format": "minutes", "show": true },
+        { "field": "travel_to_branch.cost", "label": "Cost to get there", "format": "currency", "show": true },
+        { "field": "travel_to_branch.note", "label": "How to get there", "format": "text", "show": false },
+        { "field": "total_trip_cost", "label": "Total trip cost", "format": "currency", "show": true },
+        { "field": "tags", "label": "", "format": "list", "show": true },
+        { "field": "reason", "label": "Why", "format": "text", "show": true }
+      ]
+    }
+  },
+
+  "assumptions": {
+    "heading": "What I assumed",
+    "fields": [
+      { "field": "trip_request.airports", "label": "Airports", "format": "list", "show": true },
+      { "field": "trip_request.pickup_datetime", "label": "Pick up", "format": "datetime", "show": true },
+      { "field": "trip_request.return_datetime", "label": "Return", "format": "datetime", "show": true },
+      { "field": "trip_request.travelers", "label": "Travelers", "format": "number", "show": true },
+      { "field": "trip_request.drivers", "label": "Driver ages", "format": "list", "show": true },
+      { "field": "trip_request.car_class", "label": "Car size", "format": "text", "show": true },
+      { "field": "trip_request.one_way_ok", "label": "OK to return somewhere else", "format": "yes_no", "show": true },
+      { "field": "trip_request.max_travel_minutes_to_branch", "label": "Longest trip to the branch", "format": "minutes", "show": true }
+    ]
+  },
+
+  "confirmation": {
+    "heading": "Review before booking",
+    "fields": [
+      { "field": "confirmation_summary.what", "label": "What", "format": "text", "show": true },
+      { "field": "confirmation_summary.where", "label": "Where", "format": "text", "show": true },
+      { "field": "confirmation_summary.dates", "label": "When", "format": "text", "show": true },
+      { "field": "confirmation_summary.total", "label": "Total", "format": "currency", "show": true },
+      { "field": "confirmation_summary.cancellation_policy", "label": "Cancellation", "format": "text", "show": true },
+      { "field": "confirmation_summary.drivers", "label": "Drivers", "format": "list", "show": true }
+    ],
+    "approve_button": "Looks good, book it",
+    "change_button": "Change something",
+    "approved_label": "You approved this on {approved_at}",
+    "not_approved_label": "Waiting for your OK. Nothing is booked yet.",
+    "no_card_note": "I never see or store your card details."
+  }
+}

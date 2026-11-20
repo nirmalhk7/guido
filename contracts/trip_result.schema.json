@@ -1,0 +1,279 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "trip_result.schema.json",
+  "title": "Trip result",
+  "description": "What the rental-car agent returns for one trip request: every option it considered, the winner, the steps it took, and the booking confirmation. Money is in the currency named by `currency`. See docs/CONTEXT.md.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "currency",
+    "data_source",
+    "trip_request",
+    "options",
+    "winner_summary",
+    "audit_trail",
+    "confirmation"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Version of this contract, e.g. \"0.1.0\"."
+    },
+    "currency": {
+      "type": "string",
+      "description": "Currency for all money fields, e.g. \"USD\".",
+      "default": "USD"
+    },
+    "placeholder_notice": {
+      "type": "string",
+      "description": "Required when data_source.is_real_data is false. Explains which values are made up."
+    },
+    "data_source": { "$ref": "#/$defs/data_source" },
+    "trip_request": { "$ref": "#/$defs/trip_request" },
+    "options": {
+      "type": "array",
+      "description": "EVERY candidate considered, including ones that don't fit, so the UI can filter and re-sort.",
+      "items": { "$ref": "#/$defs/option" },
+      "minItems": 1
+    },
+    "winner_summary": { "$ref": "#/$defs/winner_summary" },
+    "audit_trail": {
+      "type": "array",
+      "description": "Ordered steps the agent took, in plain language.",
+      "items": { "$ref": "#/$defs/audit_step" }
+    },
+    "confirmation": { "$ref": "#/$defs/confirmation" }
+  },
+  "if": {
+    "properties": { "data_source": { "properties": { "is_real_data": { "const": false } } } }
+  },
+  "then": { "required": ["placeholder_notice"] },
+  "$defs": {
+    "money": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Amount in the result's currency."
+    },
+    "data_source": {
+      "type": "object",
+      "required": ["data_source", "captured_at", "is_real_data"],
+      "properties": {
+        "data_source": {
+          "type": "string",
+          "description": "Where the prices came from, e.g. \"Rental company websites\" or \"PLACEHOLDER sample data\"."
+        },
+        "captured_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the prices were captured."
+        },
+        "is_real_data": {
+          "type": "boolean",
+          "description": "false means the prices are made up and must be labelled as such on screen."
+        }
+      }
+    },
+    "driver": {
+      "type": "object",
+      "required": ["age"],
+      "properties": {
+        "age": { "type": "integer", "minimum": 16 }
+      }
+    },
+    "trip_request": {
+      "type": "object",
+      "required": [
+        "start_area",
+        "airports",
+        "end_area",
+        "pickup_datetime",
+        "return_datetime",
+        "days",
+        "travelers",
+        "drivers",
+        "car_class",
+        "one_way_ok",
+        "max_travel_minutes_to_branch"
+      ],
+      "properties": {
+        "start_area": { "type": "string", "description": "e.g. \"Dallas, TX\"." },
+        "airports": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Airport codes to search around, e.g. [\"DFW\", \"DAL\"]."
+        },
+        "end_area": { "type": "string" },
+        "pickup_datetime": { "type": "string", "format": "date-time" },
+        "return_datetime": { "type": "string", "format": "date-time" },
+        "days": { "type": "integer", "minimum": 1, "description": "Billable rental days." },
+        "travelers": { "type": "integer", "minimum": 1 },
+        "drivers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/driver" },
+          "minItems": 1
+        },
+        "car_class": { "type": "string", "description": "Requested car class, e.g. \"midsize_suv\"." },
+        "one_way_ok": { "type": "boolean", "description": "Can the car be dropped off somewhere other than the pickup branch?" },
+        "max_travel_minutes_to_branch": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "mileage_policy": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["unlimited", "capped"] },
+        "cap_miles": { "type": "number", "minimum": 0, "description": "Total miles included (only when capped)." },
+        "per_mile_cost": { "$ref": "#/$defs/money", "description": "Cost per mile over the cap (only when capped)." }
+      },
+      "if": { "properties": { "type": { "const": "capped" } } },
+      "then": { "required": ["cap_miles", "per_mile_cost"] }
+    },
+    "travel_to_branch": {
+      "type": "object",
+      "description": "Getting from the airport to the pickup branch.",
+      "required": ["minutes", "cost"],
+      "properties": {
+        "minutes": { "type": "number", "minimum": 0 },
+        "cost": { "$ref": "#/$defs/money" },
+        "note": { "type": "string", "description": "e.g. \"Free shuttle\" or \"Rideshare, about $18\"." }
+      }
+    },
+    "option": {
+      "type": "object",
+      "required": [
+        "option_id",
+        "brand",
+        "pickup_branch",
+        "dropoff_branch",
+        "pickup_time",
+        "dropoff_time",
+        "base_daily_rate",
+        "days",
+        "base_total",
+        "airport_concession_fee",
+        "taxes",
+        "other_fees",
+        "additional_driver_fee",
+        "young_renter_fee",
+        "one_way_fee",
+        "mileage_policy",
+        "travel_to_branch",
+        "car_class",
+        "seats",
+        "luggage_fit_note",
+        "total_trip_cost",
+        "status"
+      ],
+      "properties": {
+        "option_id": { "type": "string" },
+        "brand": { "type": "string" },
+        "pickup_branch": { "type": "string" },
+        "dropoff_branch": { "type": "string" },
+        "pickup_time": { "type": "string", "format": "date-time" },
+        "dropoff_time": { "type": "string", "format": "date-time" },
+        "base_daily_rate": { "$ref": "#/$defs/money" },
+        "days": { "type": "integer", "minimum": 1 },
+        "base_total": { "$ref": "#/$defs/money" },
+        "airport_concession_fee": { "$ref": "#/$defs/money", "description": "Airport or concession recovery fee. 0 if none." },
+        "taxes": { "$ref": "#/$defs/money" },
+        "other_fees": { "$ref": "#/$defs/money", "description": "Any other fees, e.g. facility charges." },
+        "additional_driver_fee": { "$ref": "#/$defs/money" },
+        "young_renter_fee": { "$ref": "#/$defs/money" },
+        "one_way_fee": { "$ref": "#/$defs/money", "description": "0 if pickup and drop-off are the same branch." },
+        "mileage_policy": { "$ref": "#/$defs/mileage_policy" },
+        "travel_to_branch": { "$ref": "#/$defs/travel_to_branch" },
+        "car_class": { "type": "string" },
+        "seats": { "type": "integer", "minimum": 1 },
+        "luggage_fit_note": { "type": "string" },
+        "total_trip_cost": {
+          "$ref": "#/$defs/money",
+          "description": "Everything added up: base_total + all fees + taxes + travel_to_branch.cost."
+        },
+        "rank": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "description": "1 = best. Only set for recommended and alternative options; null for not_a_fit."
+        },
+        "status": { "enum": ["recommended", "alternative", "not_a_fit"] },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Optional short labels, e.g. [\"Cheapest\", \"Free shuttle\"]."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Plain-words explanation. Required for not_a_fit, e.g. \"Closes at 5 PM, before your 6 PM pickup.\""
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "not_a_fit" } } },
+          "then": {
+            "required": ["reason"],
+            "properties": { "rank": { "type": "null" } }
+          },
+          "else": {
+            "required": ["rank"],
+            "properties": { "rank": { "type": "integer" } }
+          }
+        }
+      ]
+    },
+    "winner_summary": {
+      "type": "object",
+      "required": [
+        "recommended_option_id",
+        "total",
+        "savings_vs_obvious_option",
+        "one_line_explanation"
+      ],
+      "properties": {
+        "recommended_option_id": { "type": "string" },
+        "total": { "$ref": "#/$defs/money" },
+        "obvious_option_id": {
+          "type": "string",
+          "description": "Optional. The option most people would pick by default, which the savings are measured against."
+        },
+        "savings_vs_obvious_option": { "type": "number" },
+        "one_line_explanation": { "type": "string" }
+      }
+    },
+    "audit_step": {
+      "type": "object",
+      "required": ["step_number", "step_name", "plain_language_finding", "timestamp"],
+      "properties": {
+        "step_number": { "type": "integer", "minimum": 1 },
+        "step_name": { "type": "string" },
+        "plain_language_finding": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    },
+    "confirmation": {
+      "type": "object",
+      "required": ["confirmation_summary", "human_approved", "approved_at", "handoff_type"],
+      "properties": {
+        "confirmation_summary": {
+          "type": "object",
+          "required": ["what", "where", "dates", "total", "cancellation_policy", "drivers"],
+          "properties": {
+            "what": { "type": "string" },
+            "where": { "type": "string" },
+            "dates": { "type": "string" },
+            "total": { "$ref": "#/$defs/money" },
+            "cancellation_policy": { "type": "string" },
+            "drivers": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "human_approved": { "type": "boolean" },
+        "approved_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "When the human approved. null until they do."
+        },
+        "handoff_type": { "enum": ["rental_company_checkout", "simulated_booking"] }
+      },
+      "if": { "properties": { "human_approved": { "const": true } } },
+      "then": { "properties": { "approved_at": { "type": "string" } } }
+    }
+  }
+}
