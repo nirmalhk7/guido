@@ -7,6 +7,7 @@
   "engines": { "node": ">=22" },
   "scripts": {
     "render:email": "node render.mjs",
+    "preview:email": "node render.mjs && open out/index.html",
     "stress:make": "node samples/make-stress.mjs"
   }
 }

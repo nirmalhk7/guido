@@ -82,8 +82,8 @@ If an email app blocks images, it shows the alt text "Guido" next to the wordmar
 
 ```sh
 cd email
-npm run render:email     # writes email/out/*.html, *.txt and out/index.html
-open out/index.html      # every email at desktop and phone width
+npm run preview:email    # renders everything, then opens out/index.html (Mac)
+npm run render:email     # just renders: email/out/*.html, *.txt and out/index.html
 npm run stress:make      # regenerate stress-test samples (samples/stress/*.json)
 ```
 
