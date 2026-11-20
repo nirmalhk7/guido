@@ -1,0 +1,37 @@
+Subject: About the rental car search for your Dallas trip
+
+Guido
+
+About your Dallas trip, Nov 25–29
+
+YOUR TRIP
+Dates: Wed, Nov 25, 6:00 PM → Sun, Nov 29, 12:00 PM
+Travelers: 4 travelers
+Drivers: 2 drivers, ages 34, 23 · Young driver fee applies
+Car size: Midsize SUV
+Branch distance: Up to 30 min to the branch
+Drop-off: Return to the same place
+
+I couldn't reach any rental companies just now. That doesn't mean there are no cars. Try again in a few minutes.
+
+What I searched: 4 travelers, Wed, Nov 25, 6:00 PM to Sun, Nov 29, 12:00 PM, within 30 min of DFW, DAL
+
+Why nothing came up: None of the rental companies answered in time, so I couldn't check prices.
+
+What could help:
+- Try again in a few minutes
+- Try different dates or times
+
+Reply to this email with new details and I'll search again.
+See the full details: {{audit_url}}
+
+0 of 6 rental companies answered
+Didn't respond in time: PLACEHOLDER Rental Co A, PLACEHOLDER Rental Co B, PLACEHOLDER Rental Co D and PLACEHOLDER Rental Co E
+No access yet: PLACEHOLDER Rental Co C and PLACEHOLDER Rental Co F
+Couldn't check doesn't mean no cars. It means I couldn't get an answer.
+You can also write to {{reply_to_address}}.
+
+--
+Guido never books or pays for you. When you're ready, you confirm on the rental company's own checkout.
+I never see or store your card details.
+You're getting this because you asked Guido to find you a rental car.

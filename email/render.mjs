@@ -11,7 +11,7 @@ const OUT = new URL("./out/", import.meta.url);
 const STRESS = new URL("./samples/stress/", import.meta.url);
 
 // Which demo variants to render, in order.
-const VARIANT_ORDER = ["normal", "partial"];
+const VARIANT_ORDER = ["normal", "partial", "nothing_fits", "no_cars", "unreachable"];
 
 const jobs = VARIANT_ORDER.filter((k) => variants[k]).map((k) => {
   const v = variants[k]();

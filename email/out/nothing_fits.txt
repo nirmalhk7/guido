@@ -1,0 +1,51 @@
+Subject: About the rental car search for your Dallas trip
+
+Guido
+
+About your Dallas trip, Nov 25–29
+
+Note: These are made-up sample prices for this demo. They are not real quotes.
+
+YOUR TRIP
+Dates: Wed, Nov 25, 6:00 PM → Sun, Nov 29, 12:00 PM
+Travelers: 4 travelers
+Drivers: 2 drivers, ages 34, 23 · Young driver fee applies
+Car size: Midsize SUV
+Branch distance: Up to 5 min to the branch
+Drop-off: Return to the same place
+
+I found cars, but none fit your trip. Here's why each one was set aside.
+
+What I searched: 4 travelers, Wed, Nov 25, 6:00 PM to Sun, Nov 29, 12:00 PM, within 5 min of DFW, DAL
+
+Why nothing came up: Every car I found missed at least one of your needs:
+- PLACEHOLDER Rental Co A: PLACEHOLDER About 15 minutes from the airport, more than your 5-minute limit.
+- PLACEHOLDER Rental Co B: PLACEHOLDER About 10 minutes from the airport, more than your 5-minute limit.
+- PLACEHOLDER Rental Co C: PLACEHOLDER About 10 minutes from the airport, more than your 5-minute limit.
+- PLACEHOLDER Rental Co D: PLACEHOLDER Closes at 5 PM on Wed, Nov 25, before your 6 PM pickup.
+- PLACEHOLDER Rental Co A: PLACEHOLDER You'd return the car to a different airport than where you picked it up, and you asked to return it to the…
+- and 2 more
+
+What could help:
+- Allow a longer trip to the branch (now 5 min)
+- Allow returning the car somewhere else
+- Try a different car size
+- Try different dates or times
+
+Reply to this email with new details and I'll search again.
+See the full details: {{audit_url}}
+
+5 of 6 rental companies answered
+Didn't respond in time: PLACEHOLDER Rental Co F
+Couldn't check doesn't mean no cars. It means I couldn't get an answer.
+You can also write to {{reply_to_address}}.
+
+Where these prices came from:
+Sources: OctoTrip and prices saved earlier. Oldest price checked Fri, Nov 20, 1:15 PM.
+These are sample prices for a demo, not real quotes.
+Some prices were saved earlier and may have changed since.
+
+--
+Guido never books or pays for you. When you're ready, you confirm on the rental company's own checkout.
+I never see or store your card details.
+You're getting this because you asked Guido to find you a rental car.

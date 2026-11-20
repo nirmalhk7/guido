@@ -165,14 +165,13 @@ export function buildModel(result, options = {}) {
       answered === providers.length
         ? fill(copy.coverage.all_answered, { total: providers.length })
         : fill(copy.coverage.summary, { responded: answered, total: providers.length });
-    const missing = providers
-      .filter((p) => p.result === "unavailable" || p.result === "partial")
-      .map((p) =>
-        fill(p.result === "partial" ? E.coverage_partial_line : E.coverage_missing_line, {
-          provider: trim(p.provider, cfg.max_company_chars),
-          reason: label(copy.coverage.reason_labels, p.reason, copy.coverage.reason_labels.error),
-        }),
-      );
+    // One line per reason, listing the companies: "Didn't respond in time: Rental Co A and Rental Co F".
+    const groups = new Map();
+    for (const p of providers.filter((x) => x.result === "unavailable" || x.result === "partial")) {
+      const reason = E.coverage_reason_groups[p.reason] ? p.reason : "error";
+      groups.set(reason, [...(groups.get(reason) ?? []), trim(p.provider, cfg.max_company_chars)]);
+    }
+    const missing = [...groups].map(([reason, names]) => fill(E.coverage_reason_groups[reason], { providers: joinAnd(names) }));
     coverage = { line, missing, note: missing.length ? copy.coverage.unavailable_note : undefined };
   }
 
@@ -280,5 +279,5 @@ export function buildModel(result, options = {}) {
 
 function joinAnd(items) {
   if (items.length <= 1) return items.join("");
-  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+  return `${items.slice(0, -1).join(", ")} ${E.list_and} ${items[items.length - 1]}`;
 }

@@ -52,8 +52,8 @@ Prices saved earlier · checked Fri, Nov 20, 1:15 PM
 See all 7 options: {{audit_url}}
 
 5 of 6 rental companies answered
-PLACEHOLDER Rental Co E didn't include all fees, so I couldn't fully check it.
-PLACEHOLDER Rental Co F didn't respond in time, so I couldn't check it.
+Didn't include all fees: PLACEHOLDER Rental Co E
+Didn't respond in time: PLACEHOLDER Rental Co F
 Couldn't check doesn't mean no cars. It means I couldn't get an answer.
 
 Want different dates or details? Just reply to this email and I'll search again.
