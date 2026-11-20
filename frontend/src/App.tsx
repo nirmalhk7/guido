@@ -1,50 +1,124 @@
-import { useMemo, useState } from "react";
-import type { RankingPriority, TripResult } from "@/lib/contract";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { RankingPriority, TripRequest, TripResult } from "@/lib/contract";
 import { copy } from "@/lib/copy";
-import { isStale, rankOptions } from "@/lib/rank";
+import { isStale, pageKind, rankOptions } from "@/lib/rank";
+import { cn } from "@/lib/utils";
 import { Banner } from "@/components/Banner";
 import { TripSummary } from "@/components/TripSummary";
 import { PrioritySelector } from "@/components/PrioritySelector";
 import { Results } from "@/components/Results";
 import { HowIDecided, buildSteps, type PriorityChange } from "@/components/HowIDecided";
-import { awaitingApproval, rebaseTimes, sampleResult, shiftKeepingOffset } from "@/demo/variants";
+import { LoadingView } from "@/components/LoadingView";
+import { EmptyState } from "@/components/EmptyState";
+import { DemoSwitcher } from "@/demo/DemoSwitcher";
+import { DEMO_STATES, demoInput, shiftKeepingOffset, type DemoStateKey, type PageInput } from "@/demo/variants";
 
 export default function App() {
+  const params = new URLSearchParams(window.location.search);
+  const isDemo = params.has("demo");
+  const initial = (params.get("state") as DemoStateKey) ?? "results";
+  const [stateKey, setStateKey] = useState<DemoStateKey>(DEMO_STATES.includes(initial) ? initial : "results");
+
   // For now the page reads the sample. Real results will arrive in the same shape.
-  const [result] = useState<TripResult>(() => awaitingApproval(rebaseTimes(sampleResult)));
+  const input = useMemo(() => demoInput(stateKey), [stateKey]);
+
+  const changeState = (k: DemoStateKey) => {
+    setStateKey(k);
+    const url = new URL(window.location.href);
+    url.searchParams.set("state", k);
+    window.history.replaceState(null, "", url);
+  };
+
+  return (
+    <>
+      <Page key={stateKey} input={input} />
+      {isDemo && (
+        <div className="fixed inset-x-0 bottom-4 z-50 flex justify-center px-4">
+          <DemoSwitcher value={stateKey} onChange={changeState} />
+        </div>
+      )}
+    </>
+  );
+}
+
+function Page({ input }: { input: PageInput }) {
+  const { result } = input;
+  const [loading, setLoading] = useState(!!input.loading);
+  const [pending, setPending] = useState<string[]>(input.pending ?? []);
+  const [outdated, setOutdated] = useState(!!input.outdated);
+  const [searchingAgain, setSearchingAgain] = useState(false);
   const [priority, setPriority] = useState<RankingPriority>(result.trip_request.ranking_priority);
   const [changes, setChanges] = useState<PriorityChange[]>([]);
   const now = Date.now();
 
+  // A slow company: show what we have, then mark it as not answering in time.
+  useEffect(() => {
+    if (!input.pendingForMs || pending.length === 0) return;
+    const t = setTimeout(() => setPending([]), input.pendingForMs);
+    return () => clearTimeout(t);
+  }, [input.pendingForMs, pending.length]);
+
   const ranked = useMemo(() => rankOptions(result.options, priority), [result, priority]);
   const steps = useMemo(() => buildSteps(result, priority, changes), [result, priority, changes]);
+  const kind = pageKind(result);
+  const finishLoading = useCallback(() => setLoading(false), []);
 
   const changePriority = (p: RankingPriority) => {
     setPriority(p);
     setChanges((c) => [...c, { priority: p, at: localNow(result) }]);
   };
+
+  const retry = (_trip: TripRequest) => {
+    // The backend will run the new search; for now we only mark these results as outdated.
+    setOutdated(true);
+    setSearchingAgain(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const env = result.data_source.environment;
-  const envBanner = env !== "live" ? (copy.environment_banners as Record<string, string>)[env] : undefined;
+  const envBanner = env !== "live" && kind !== "unreachable" ? (copy.environment_banners as Record<string, string>)[env] : undefined;
   const anyStale = ranked.some((o) => o.status !== "not_a_fit" && isStale(o.source.captured_at, now));
 
   return (
-    <div className="mx-auto max-w-[640px] space-y-6 px-4 pb-16 pt-6 sm:pt-10">
+    <div className="mx-auto max-w-[640px] space-y-6 px-4 pb-28 pt-6 sm:pt-10">
       <header className="space-y-1 px-1">
         <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">{copy.page.agent_name}</p>
         <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[34px]">{copy.page.title}</h1>
       </header>
 
-      {(envBanner || anyStale) && (
-        <div className="space-y-2">
-          {envBanner && <Banner tone={env === "fixture" ? "sample" : "warning"}>{envBanner}</Banner>}
-          {anyStale && <Banner tone="warning">{copy.freshness.stale_banner}</Banner>}
-        </div>
-      )}
+      <div className="space-y-2 empty:hidden">
+        {outdated && (
+          <Banner tone="warning">
+            <p className="font-medium">{copy.outdated.banner}</p>
+            {searchingAgain && (
+              <p className="mt-1">
+                {copy.outdated.searching_again} <span className="text-[13px] opacity-80">{copy.outdated.demo_note}</span>
+              </p>
+            )}
+          </Banner>
+        )}
+        {envBanner && !loading && <Banner tone={env === "fixture" ? "sample" : "warning"}>{envBanner}</Banner>}
+        {anyStale && !loading && <Banner tone="warning">{copy.freshness.stale_banner}</Banner>}
+      </div>
 
-      <TripSummary trip={result.trip_request} />
-      <PrioritySelector value={priority} onChange={changePriority} />
-      <Results result={result} ranked={ranked} priority={priority} now={now} />
-      <HowIDecided steps={steps} ranked={ranked} />
+      <div className={cn("space-y-6 transition-opacity", outdated && "opacity-60")} aria-disabled={outdated || undefined}>
+        <TripSummary trip={result.trip_request} />
+
+        {loading ? (
+          <LoadingView result={result} onDone={finishLoading} />
+        ) : kind === "results" ? (
+          <div className="animate-fade-up space-y-6">
+            <PrioritySelector value={priority} onChange={changePriority} />
+            <Results result={result} ranked={ranked} priority={priority} now={now} pending={pending} />
+            <HowIDecided steps={steps} ranked={ranked} />
+          </div>
+        ) : (
+          <div className="animate-fade-up space-y-6">
+            <EmptyState kind={kind} result={result} onRetry={retry} />
+            {steps.length > 0 && <HowIDecided steps={steps} ranked={ranked} />}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -52,6 +126,5 @@ export default function App() {
 /** "Now" written with the same clock offset the result's own timestamps use. */
 function localNow(result: TripResult): string {
   const ref = result.audit_trail[0]?.timestamp ?? new Date().toISOString();
-  const nowIso = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
-  return shiftKeepingOffset(ref, Date.parse(nowIso) - Date.parse(ref));
+  return shiftKeepingOffset(ref, Date.now() - Date.parse(ref));
 }
