@@ -1,0 +1,12 @@
+{
+  "name": "guido-email",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Guido's results email: template + render script. No dependencies; sending is done by the backend through AgentMail.",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "render:email": "node render.mjs",
+    "stress:make": "node samples/make-stress.mjs"
+  }
+}
