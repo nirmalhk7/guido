@@ -226,6 +226,7 @@
   },
 
   "page": {
+    "brand_name": "Guido",
     "title": "Your rental car",
     "agent_name": "Your car-finding agent",
     "trip_line": "{start_area} · {pickup} to {return}"

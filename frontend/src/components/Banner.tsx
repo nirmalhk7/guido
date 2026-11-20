@@ -5,9 +5,9 @@ import { cn } from "@/lib/utils";
 type Tone = "info" | "warning" | "sample";
 
 const toneStyles: Record<Tone, string> = {
-  info: "bg-primary-soft text-[#00468c]",
+  info: "bg-primary-soft text-primary-strong",
   warning: "bg-warning-soft text-warning",
-  sample: "bg-[#efe9fb] text-[#4b2a9a]",
+  sample: "border border-border bg-card text-foreground [&_svg]:text-muted-foreground",
 };
 
 const toneIcon: Record<Tone, ReactNode> = {

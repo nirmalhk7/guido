@@ -69,22 +69,3 @@ export function Timeline({ steps, animate = false }: { steps: TimelineStep[]; an
     </ol>
   );
 }
-
-/** Compact collapsed progress dots (the RV stepper's closed state). */
-export function MiniSteps({ steps }: { steps: TimelineStep[] }) {
-  return (
-    <span aria-hidden className="flex items-center gap-1">
-      {steps.map((s, i) => (
-        <span key={s.key} className="flex items-center gap-1">
-          {i > 0 && <span className="h-0.5 w-2.5 rounded bg-border" />}
-          <span
-            className={cn(
-              "size-2.5 rounded-full",
-              s.state === "done" ? (s.emphasis ? "bg-primary" : "bg-success") : s.state === "working" ? "bg-primary/50" : "border border-border bg-card",
-            )}
-          />
-        </span>
-      ))}
-    </span>
-  );
-}

@@ -4,7 +4,7 @@ import type { AuditStep, Option, RankingPriority, TripResult } from "@/lib/contr
 import { copy, fill } from "@/lib/copy";
 import { Card, CardBody } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { MiniSteps, Timeline, type TimelineStep } from "./Timeline";
+import { Timeline, type TimelineStep } from "./Timeline";
 import { CompareTable } from "./CompareTable";
 
 export interface PriorityChange {
@@ -61,7 +61,6 @@ export function HowIDecided({ steps, ranked }: { steps: TimelineStep[]; ranked: 
                   {copy.layer_3_how_i_decided.toggle_label}
                 </h2>
                 <p className="text-[14px] text-muted-foreground">{fill(h.summary, { count: steps.length })}</p>
-                <MiniSteps steps={steps} />
               </div>
               <span className="sr-only">{open ? h.close : h.open}</span>
               <ChevronDown aria-hidden className={`size-5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />

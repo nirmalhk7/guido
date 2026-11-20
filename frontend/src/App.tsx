@@ -4,6 +4,7 @@ import { copy } from "@/lib/copy";
 import { isStale, pageKind, rankOptions } from "@/lib/rank";
 import { cn } from "@/lib/utils";
 import { Banner } from "@/components/Banner";
+import { Logo } from "@/components/Logo";
 import { TripSummary } from "@/components/TripSummary";
 import { PrioritySelector } from "@/components/PrioritySelector";
 import { Results } from "@/components/Results";
@@ -94,8 +95,8 @@ function Page({ input }: { input: PageInput }) {
 
   return (
     <div className="mx-auto max-w-[640px] space-y-6 px-4 pb-28 pt-6 sm:pt-10">
-      <header className="space-y-1 px-1">
-        <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">{copy.page.agent_name}</p>
+      <header className="space-y-5 px-1">
+        <Logo size="md" />
         <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[34px]">{copy.page.title}</h1>
       </header>
 

@@ -2,6 +2,12 @@
 
 /* Calm, Apple-like tokens in the shadcn/ui naming style. Light mode first. */
 :root {
+  /* Guido brand blue: the ONE accent. Change it here and everything follows.
+     6.6:1 contrast on white, so it's safe for text, links and buttons. */
+  --brand: #1e4fd8;
+  --brand-strong: #173fad; /* darker shade for text on brand-tinted backgrounds */
+  --brand-soft: #ebf0fc; /* light tint for badges and highlights */
+
   --background: #f5f5f7;
   --foreground: #1d1d1f;
   --card: #ffffff;
@@ -9,15 +15,16 @@
   --muted: #f0f0f2;
   --muted-foreground: #5f5f66; /* 6.3:1 on white */
   --border: #e3e3e8;
-  --primary: #0066cc; /* the one accent, 5.6:1 on white */
+  --primary: var(--brand);
   --primary-foreground: #ffffff;
-  --primary-soft: #e8f1fc;
+  --primary-soft: var(--brand-soft);
+  --primary-strong: var(--brand-strong);
   --success: #1a7f37;
   --success-soft: #e9f6ec;
   --warning: #8a5300; /* 5.9:1 on its soft bg */
   --warning-soft: #fff4e0;
   --danger: #b42318;
-  --ring: #0066cc;
+  --ring: var(--brand);
   --radius: 14px;
 }
 
@@ -32,6 +39,7 @@
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-soft: var(--primary-soft);
+  --color-primary-strong: var(--primary-strong);
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
   --color-warning: var(--warning);
