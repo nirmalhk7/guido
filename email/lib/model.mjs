@@ -168,7 +168,7 @@ export function buildModel(result, options = {}) {
     const missing = providers
       .filter((p) => p.result === "unavailable" || p.result === "partial")
       .map((p) =>
-        fill(E.coverage_missing_line, {
+        fill(p.result === "partial" ? E.coverage_partial_line : E.coverage_missing_line, {
           provider: trim(p.provider, cfg.max_company_chars),
           reason: label(copy.coverage.reason_labels, p.reason, copy.coverage.reason_labels.error),
         }),

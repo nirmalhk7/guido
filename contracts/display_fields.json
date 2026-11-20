@@ -418,6 +418,7 @@
     "not_a_fit_line_one": "1 more option didn't fit your trip. See why on the results page.",
     "not_a_fit_line_many": "{count} more options didn't fit your trip. See why on the results page.",
     "coverage_missing_line": "{provider} {reason}, so I couldn't check it.",
+    "coverage_partial_line": "{provider} {reason}, so I couldn't fully check it.",
     "reply_line": "Want different dates or details? Just reply to this email and I'll search again.",
     "reply_address_line": "You can also write to {reply_to_address}.",
     "source_heading": "Where these prices came from",
