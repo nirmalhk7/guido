@@ -166,11 +166,16 @@ and publish the updated [Guido prompt](guild/email/PROMPT.md).
 Set `AMPLITUDE_API_KEY` for the US Amplitude project. Agent Analytics spans
 record message reads, Superlinked scores, Statsig decisions, Guild runs,
 rental-provider requests, memory operations, and Gmail result delivery.
-The relay and rental gateway use a shared trace ID. Spans include timing
-and outcome. Email text, sender addresses, drafts, and tool payloads stay
-out of Amplitude. Guild's own session log retains the model-level details.
-Trigger-only AgentMail runs report acceptance. Runs that wait for Guild
-also report completion or failure and close the Amplitude session.
+Filter the span name by `email.received` for incoming AgentMail and Gmail
+messages or `road_trip.detected` for an itinerary Superlinked identifies
+as a road trip. Both can appear in the same session. Road trips in a
+traveler's own car can be detected without starting a rental search.
+
+Each email workflow and its rental gateway calls share an Amplitude session
+ID. When the workflow starts Guido in Guild, its spans also include the
+Guild session ID. Trigger-only AgentMail runs report acceptance. Workflows
+that wait for Guild report the outcome and close the Amplitude session.
+Email text, addresses, drafts, and tool payloads stay out of Amplitude.
 
 ## Draft an email with Cognee memory
 

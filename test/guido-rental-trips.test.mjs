@@ -90,7 +90,10 @@ test("Guido recalls a SingleStore trip linked from older Cognee history for the 
       });
     }
     if (url.hostname === "api.superlinked.com") {
-      return Response.json({ answers: [{ type: "predicate", name: "rental_needed", probability: 0.9 }] });
+      return Response.json({ answers: [
+        { type: "predicate", name: "rental_needed", probability: 0.9 },
+        { type: "predicate", name: "road_trip_detected", probability: 0.9 },
+      ] });
     }
     if (url.hostname === "api.statsig.com") {
       return Response.json({ name: "BROWSERBASE_ENABLED", value: true });

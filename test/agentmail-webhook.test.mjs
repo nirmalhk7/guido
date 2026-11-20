@@ -22,7 +22,7 @@ const storedMessage = {
   labels: ["received"],
 };
 
-async function setup(t, guildStatus = 201, message = storedMessage, amplitudeStatus, probability = 0.8, gate = true) {
+async function setup(t, guildStatus = 201, message = storedMessage, amplitudeStatus, probability = 0.8, gate = true, roadTrip = 0.9) {
   assert.ok(existsSync(route), "AgentMail needs an inbound webhook route");
   const { POST } = await import(route);
   for (const [key, value] of Object.entries({
@@ -50,7 +50,9 @@ async function setup(t, guildStatus = 201, message = storedMessage, amplitudeSta
       return Response.json({}, { status: amplitudeStatus });
     }
     if (request.url === "https://api.superlinked.com/v1/decisions") {
-      return Response.json({ answers: [{ type: "predicate", name: "rental_needed", probability }] });
+      const { questions } = await request.json();
+      return Response.json({ answers: questions.map(({ name, type }) =>
+        ({ type, name, probability: name === "road_trip_detected" ? roadTrip : probability })) });
     }
     if (request.url === "https://api.statsig.com/v1/check_gate") {
       return Response.json({ name: "BROWSERBASE_ENABLED", value: gate });
@@ -108,7 +110,14 @@ test("a Guild API trigger reports session acceptance without email data", async 
   assert.ok(upload, "the relay must report the Guild session to Amplitude");
   const { api_key, events } = await upload.json();
   assert.equal(api_key, "amplitude-test");
-  assert.equal(events.length, 4);
+  const names = events.map(({ event_properties }) => event_properties["[Agent] Span Name"]);
+  assert.ok(names.includes("email.received"));
+  assert.ok(names.includes("road_trip.detected"));
+  const guildRequest = requests.find(({ url }) => url.includes("api.guild.ai"));
+  const { agent_input } = await guildRequest.json();
+  const { rental_trace_id } = JSON.parse(agent_input.text);
+  assert.match(rental_trace_id, /^[0-9a-f-]{36}$/);
+  assert.deepEqual([...new Set(events.map(({ event_properties }) => event_properties["[Agent] Session ID"]))], [rental_trace_id]);
   const span = events.find(({ event_properties }) => event_properties["[Agent] Span Name"] === "guild.session.start");
   assert.equal(span.event_type, "[Agent] Span");
   assert.equal(span.event_properties["[Agent] Agent ID"], "guido");
@@ -144,6 +153,19 @@ test("a below-threshold incoming message is acknowledged without starting Guido"
   assert.deepEqual(requests.map((request) => new URL(request.url).hostname), [
     "api.agentmail.to", "api.superlinked.com", "api2.amplitude.com",
   ]);
+  const { events } = await requests.at(-1).json();
+  const names = events.map(({ event_properties }) => event_properties["[Agent] Span Name"]);
+  assert.ok(names.includes("email.received"));
+  assert.ok(names.includes("road_trip.detected"), "a road trip may use the traveler's own vehicle");
+});
+
+test("an ordinary incoming email records arrival without reporting a road trip", async (t) => {
+  const { deliver, requests } = await setup(t, 201, storedMessage, 200, 0.2, true, 0.2);
+  assert.equal((await deliver()).status, 204);
+  const { events } = await requests.at(-1).json();
+  const names = events.map(({ event_properties }) => event_properties["[Agent] Span Name"]);
+  assert.equal(names.filter((name) => name === "email.received").length, 1);
+  assert.ok(!names.includes("road_trip.detected"));
 });
 
 test("AgentMail gives Guild the provider selected after Superlinked's decision", async (t) => {

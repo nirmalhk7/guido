@@ -55,18 +55,22 @@ async function setup(t, probability, loseSendAcknowledgement = false) {
       assert.match(starting, /^(100|102)$/);
       return Response.json(starting === "100" ? {
         historyId: "102",
-        history: [{ id: "101", messagesAdded: [{ message: { id: "m2", threadId: "t1" } }] }],
+        history: [{ id: "101", messagesAdded: [
+          { message: { id: "m1", threadId: "t1" } },
+          { message: { id: "m2", threadId: "t1" } },
+        ] }],
       } : { historyId: "102" });
     }
     if (url.pathname.endsWith("/threads/t1")) return Response.json({ id: "t1", messages: [
       gmail("m1", "We are flying to SFO December 8.", ["INBOX"]),
-      gmail("m2", "Then we need to drive to Yosemite and return December 11.", ["SENT"]),
+      gmail("m2", "Then we need to drive to Yosemite and return December 11.", ["INBOX"]),
     ] });
     if (url.hostname === "api.superlinked.com") {
-      const { input } = await request.json();
+      const { input, questions } = await request.json();
       assert.match(input, /flying to SFO/);
       assert.match(input, /drive to Yosemite/);
-      return Response.json({ answers: [{ type: "predicate", name: "rental_needed", probability }] });
+      return Response.json({ answers: questions.map(({ type, name }) =>
+        ({ type, name, probability: name === "road_trip_detected" ? 0.9 : probability })) });
     }
     if (url.hostname === "api.statsig.com") return Response.json({ name: "BROWSERBASE_ENABLED", value: true });
     if (url.hostname === "api.guild.ai" && request.method === "POST") {
@@ -123,9 +127,13 @@ test("Gmail classifies new conversations, runs qualifying searches in Guild and 
   const telemetry = calls.find(({ url }) => url === "https://api2.amplitude.com/2/httpapi");
   const { events } = await telemetry.json();
   const spans = events.map(({ event_properties }) => event_properties["[Agent] Span Name"]);
-  for (const span of ["gmail.thread_read", "superlinked.rental_decision", "statsig.rental_gate", "guild.draft", "agentmail.send"]) {
+  for (const span of ["email.received", "road_trip.detected", "gmail.thread_read", "superlinked.rental_decision", "statsig.rental_gate", "guild.draft", "agentmail.send"]) {
     assert.ok(spans.includes(span), `missing span: ${span}`);
   }
+  assert.equal(spans.filter((span) => span === "email.received").length, 2);
+  assert.equal(spans.filter((span) => span === "road_trip.detected").length, 1);
+  assert.equal(new Set(events.map(({ event_properties }) => event_properties["[Agent] Session ID"])).size, 1);
+  assert.ok(events.every(({ event_properties }) => event_properties["[Agent] Guild Session ID"] === "guild-1"));
   assert.doesNotMatch(JSON.stringify(events), /owner@gmail.com|Yosemite|lowest verified total/);
 });
 

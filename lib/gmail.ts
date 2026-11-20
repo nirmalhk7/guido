@@ -119,9 +119,13 @@ export async function scanGmailTrips() {
         if (!raw) throw new Error("Gmail history expired. Review missed mail before resetting the checkpoint.");
         const page = historySchema.parse(raw);
         for (const change of page.history) {
-          const threads = new Map<string, string>();
-          for (const { message } of change.messagesAdded) threads.set(message.threadId, message.id);
-          const results = await Promise.allSettled([...threads].map(([thread, messageId]) => processThread(thread, messageId)));
+          const threads = new Map<string, Set<string>>();
+          for (const { message: { threadId, id } } of change.messagesAdded) {
+            const messages = threads.get(threadId) ?? new Set<string>();
+            messages.add(id);
+            threads.set(threadId, messages);
+          }
+          const results = await Promise.allSettled([...threads].map(([thread, ids]) => processThread(thread, ids)));
           const failed = results.find((result) => result.status === "rejected");
           if (failed) throw failed.reason;
           await advance(change.id);
@@ -138,10 +142,16 @@ export async function scanGmailTrips() {
     }
   });
 
-  function processThread(thread: string, messageId: string) {
+  function processThread(thread: string, messageIds: Set<string>) {
     return observeAgentRun("gmail", async (trace) => {
       const result = await trace.span("gmail.thread_read", () => gmail<{ messages?: GmailMessage[] }>(`threads/${thread}?format=full`));
       const messages = result?.messages ?? [];
+      for (const message of messages) {
+        if (messageIds.has(message.id) && isRelevant(message, inbox) && !message.labelIds?.includes("SENT")) {
+          trace.mark("email.received");
+        }
+      }
+      const messageId = [...messageIds].at(-1);
       const index = messages.findIndex(({ id }) => id === messageId);
       if (index < 0 || !isRelevant(messages[index], inbox)) {
         trace.finish("skipped");

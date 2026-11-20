@@ -46,6 +46,7 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     return await observeAgentRun("agentmail", async (trace) => {
+      trace.mark("email.received");
       if (useMemory) {
         await draftGuidoEmail(messageId, {
           eventId,

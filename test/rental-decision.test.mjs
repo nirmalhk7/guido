@@ -24,7 +24,10 @@ async function setup(t, probability, gate) {
     calls.push(request);
     switch (request.url) {
       case "https://api.superlinked.com/v1/decisions":
-        return Response.json({ answers: [{ type: "predicate", name: "rental_needed", probability }] });
+        return Response.json({ answers: [
+          { type: "predicate", name: "rental_needed", probability },
+          { type: "predicate", name: "road_trip_detected", probability: 0.8 },
+        ] });
       case "https://api.statsig.com/v1/check_gate":
         return gate === undefined
           ? new Response(null, { status: 503 })
@@ -40,6 +43,14 @@ async function setup(t, probability, gate) {
   const { observeAgentRun } = await import("../lib/amplitude.ts");
   return { calls, run: () => observeAgentRun("agentmail", (trace) => decideRental(mail, trace)) };
 }
+
+test("the rental predicate tells Superlinked to qualify explicit quote requests", async (t) => {
+  const { run, calls } = await setup(t, 0.8, false);
+  await run();
+  const { questions } = await calls[0].json();
+  const rental = questions.find(({ name }) => name === "rental_needed");
+  assert.match(rental.instructions, /explicit (?:request|ask)[^.]*\b(?:rent|quote)[^.]*\balways qualifies\b/i);
+});
 
 for (const probability of [0.49, 0.5]) {
   test(`a ${probability * 100}% rental need skips Statsig`, async (t) => {
@@ -63,6 +74,7 @@ for (const [gate, route] of [[true, "browserbase"], [false, "firedrill"]]) {
     const input = await decision.json();
     assert.deepEqual(input.questions.map(({ name, type }) => ({ name, type })), [
       { name: "rental_needed", type: "predicate" },
+      { name: "road_trip_detected", type: "predicate" },
     ]);
     assert.match(input.input, /Yosemite trip/);
     assert.match(input.input, /Landing at SFO/);
