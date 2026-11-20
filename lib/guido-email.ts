@@ -2,7 +2,8 @@ import { createHmac } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { getAgentMail, type Message } from "./agentmail.ts";
-import { observeGuildRun } from "./amplitude.ts";
+import { observeGuildRun, type AgentTrace } from "./amplitude.ts";
+import { decideRental, type RentalRoute } from "./rental-decision.ts";
 import { loadRentalTrips, rentalTrip, saveRentalTrip } from "./rental-trips.ts";
 
 const guildHost = "https://api.guild.ai/v1";
@@ -15,8 +16,15 @@ function setting(name: string): string {
   return value;
 }
 
-type EmailInput = { subject: string; message: string; sent_at: string; agentmail_event_id?: string };
-type WebhookDelivery = { eventId: string; unauthenticated: boolean };
+type EmailInput = {
+  subject: string;
+  message: string;
+  sent_at: string;
+  agentmail_event_id?: string;
+  rental_provider?: Exclude<RentalRoute, "skip">;
+  source?: "gmail";
+};
+type WebhookDelivery = { eventId: string; unauthenticated: boolean; trace: AgentTrace };
 type Exchange = { question: string; answer: string; context: string };
 type DraftResult = { draft: string; memory: "saved" | "skipped" };
 const tripContext = /^[a-f0-9]{64}:trip:([a-f0-9]{64})$/;
@@ -50,10 +58,11 @@ function cogneeClient() {
   });
 }
 
-async function guildDraft(
+export async function guildDraft(
   email: EmailInput,
   priorExchanges: { message: string; draft: string }[],
   priorRentalTrips: Awaited<ReturnType<typeof loadRentalTrips>> = [],
+  trace?: AgentTrace,
 ) {
   const headers = { Authorization: `Bearer ${setting("GUILD_API_KEY")}`, "Content-Type": "application/json" };
   const signal = AbortSignal.timeout(300_000);
@@ -69,12 +78,13 @@ async function guildDraft(
     return response.json();
   }
 
-  return observeGuildRun("draft", async (identify) => {
+  const run = async (identify: (id: string) => void) => {
     const { id } = await guild<{ id: string }>(`/workspaces/${workspace}/sessions`, {
       agent_id: agentId,
       session_type: "chat",
       initial_prompt: JSON.stringify({
         ...email,
+        rental_trace_id: trace?.id,
         prior_exchanges: priorExchanges,
         prior_rental_trips: priorRentalTrips,
       }),
@@ -103,7 +113,8 @@ async function guildDraft(
       }
       await delay(1_000, undefined, { signal });
     }
-  });
+  };
+  return trace ? trace.span("guild.draft", () => run(trace.identifyGuild)) : observeGuildRun("draft", run);
 }
 
 function historyInput(exchanges: Exchange[]) {
@@ -128,7 +139,9 @@ export async function draftGuidoEmail(messageId: string, delivery?: WebhookDeliv
 }
 
 async function draftFromInbox(inbox: string, messageId: string, delivery?: WebhookDelivery): Promise<DraftResult> {
-  const message = await getAgentMail<Message & { extracted_html?: string; html?: string }>({ messageId });
+  const fetchMessage = () => getAgentMail<Message & { extracted_html?: string; html?: string }>({ messageId });
+  const trace = delivery?.trace;
+  const message = trace ? await trace.span("agentmail.message_read", fetchMessage) : await fetchMessage();
   if (message.message_id !== messageId || !message.labels.includes("received")) {
     throw new Error("AgentMail did not return the requested inbound message.");
   }
@@ -141,9 +154,18 @@ async function draftFromInbox(inbox: string, messageId: string, delivery?: Webho
   };
   if (!email.message) throw new Error("The incoming email has no plain-text body.");
 
+  if (trace) {
+    const route = await decideRental(email, trace);
+    if (route === "skip") {
+      trace.finish("skipped");
+      return { draft: "", memory: "skipped" };
+    }
+    email.rental_provider = route;
+  }
+
   const sender = delivery?.unauthenticated ? undefined : verifiedSender(message);
   if (!sender) {
-    const { draft } = await guildDraft(email, []);
+    const { draft } = await guildDraft(email, [], [], trace);
     return { draft, memory: "skipped" };
   }
 
@@ -155,7 +177,8 @@ async function draftFromInbox(inbox: string, messageId: string, delivery?: Webho
   const messageKey = digest([sessionId, messageId]);
   const cognee = cogneeClient();
 
-  const history = await cognee(`/sessions/${sessionId}`);
+  const readHistory = () => cognee(`/sessions/${sessionId}`);
+  const history = trace ? await trace.span("cognee.history", readHistory) : await readHistory();
   let qas: Exchange[] = [];
   if (history.ok) {
     const data = await history.json();
@@ -176,20 +199,30 @@ async function draftFromInbox(inbox: string, messageId: string, delivery?: Webho
     const match = tripContext.exec(context);
     if (match) tripIds.add(match[1]);
   }
-  const priorTrips = await loadRentalTrips(senderScope, [...tripIds]);
-  const { draft, trip } = await guildDraft(email, historyInput(qas), priorTrips);
-  const context = trip ? `${messageKey}:trip:${await saveRentalTrip(senderScope, trip)}` : messageKey;
-  const saved = await cognee("/remember/entry", {
-    dataset_name: "guido_email",
-    session_id: sessionId,
-    entry: { type: "qa", question: JSON.stringify(email), answer: draft, context },
-  });
-  if (!saved.ok) throw new Error(`Cognee session write failed (HTTP ${saved.status}).`);
-  const result = await saved.json();
-  if (result.status !== "session_stored" || !result.entry_id ||
-      !Array.isArray(result.session_ids) || !result.session_ids.includes(sessionId)) {
-    throw new Error("Cognee did not confirm the write.");
+  const recallTrips = () => loadRentalTrips(senderScope, [...tripIds]);
+  const priorTrips = trace && tripIds.size ? await trace.span("singlestore.trip_recall", recallTrips) : await recallTrips();
+  const { draft, trip } = await guildDraft(email, historyInput(qas), priorTrips, trace);
+  let context = messageKey;
+  if (trip) {
+    const saveTrip = () => saveRentalTrip(senderScope, trip);
+    const tripId = trace ? await trace.span("singlestore.trip_save", saveTrip) : await saveTrip();
+    context += `:trip:${tripId}`;
   }
+  const saveMemory = async () => {
+    const saved = await cognee("/remember/entry", {
+      dataset_name: "guido_email",
+      session_id: sessionId,
+      entry: { type: "qa", question: JSON.stringify(email), answer: draft, context },
+    });
+    if (!saved.ok) throw new Error(`Cognee session write failed (HTTP ${saved.status}).`);
+    const result = await saved.json();
+    if (result.status !== "session_stored" || !result.entry_id ||
+        !Array.isArray(result.session_ids) || !result.session_ids.includes(sessionId)) {
+      throw new Error("Cognee did not confirm the write.");
+    }
+  };
+  if (trace) await trace.span("cognee.remember", saveMemory);
+  else await saveMemory();
   return { draft, memory: "saved" };
 }
 

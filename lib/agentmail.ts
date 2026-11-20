@@ -22,8 +22,9 @@ export interface Message extends MessageSummary {
 }
 
 type MailRequest = { signal?: AbortSignal } & (
-  | { messageId?: string; query?: URLSearchParams; reply?: never }
-  | { messageId: string; query?: never; reply: { to: string; text: string; idempotencyKey: string } }
+  | { messageId?: string; query?: URLSearchParams; reply?: never; send?: never }
+  | { messageId?: never; query?: never; reply?: never; send: { to: string[]; subject: string; text: string; labels: string[] } }
+  | { messageId: string; query?: never; reply: { to: string; text: string; idempotencyKey: string }; send?: never }
 );
 
 async function requestAgentMail<T>(options: MailRequest): Promise<T> {
@@ -33,7 +34,7 @@ async function requestAgentMail<T>(options: MailRequest): Promise<T> {
     throw new Error("Set AGENTMAIL_API_KEY and AGENTMAIL_INBOX_ID in .env.local.");
   }
 
-  const { messageId, query, signal, reply } = options;
+  const { messageId, query, signal, reply, send } = options;
   if (messageId !== undefined && (!messageId.trim() || messageId === "." || messageId === "..")) {
     throw new Error("Invalid message ID.");
   }
@@ -51,11 +52,16 @@ async function requestAgentMail<T>(options: MailRequest): Promise<T> {
     headers.set("Idempotency-Key", reply.idempotencyKey);
   }
 
+  if (send) {
+    url.pathname += "/send";
+    headers.set("Content-Type", "application/json");
+  }
+
   const timeout = AbortSignal.timeout(15_000);
   const response = await fetch(url, {
-    method: reply ? "POST" : "GET",
+    method: reply || send ? "POST" : "GET",
     headers,
-    body: reply ? JSON.stringify({ to: reply.to, text: reply.text }) : undefined,
+    body: send ? JSON.stringify(send) : reply ? JSON.stringify({ to: reply.to, text: reply.text }) : undefined,
     redirect: "error",
     signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
   });
@@ -78,4 +84,10 @@ export function replyAgentMail(options: {
 }) {
   const { messageId, signal, ...reply } = options;
   return requestAgentMail<{ message_id: string; thread_id: string }>({ messageId, signal, reply });
+}
+
+export function sendAgentMail(to: string, subject: string, text: string, label: string) {
+  return requestAgentMail<{ message_id: string; thread_id: string }>({
+    send: { to: [to], subject, text, labels: [label] },
+  });
 }

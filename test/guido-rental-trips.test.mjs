@@ -27,6 +27,8 @@ test("Guido recalls a SingleStore trip linked from older Cognee history for the 
     COGNEE_API_KEY: "cognee-test",
     COGNEE_TENANT_ID: tenant,
     GUIDO_MEMORY_SECRET: secret,
+    SUPERLINKED_API_KEY: "sie-test",
+    STATSIG_SDK_KEY: "statsig-test",
     GUILD_API_KEY: "guild-test",
     SINGLESTORE_HOST: "test.invalid",
     SINGLESTORE_USER: "test",
@@ -86,6 +88,12 @@ test("Guido recalls a SingleStore trip linked from older Cognee history for the 
         }[id],
         authentication_results: { dmarc: "pass", dmarc_domain: "example.com" },
       });
+    }
+    if (url.hostname === "api.superlinked.com") {
+      return Response.json({ answers: [{ type: "predicate", name: "rental_needed", probability: 0.9 }] });
+    }
+    if (url.hostname === "api.statsig.com") {
+      return Response.json({ name: "BROWSERBASE_ENABLED", value: true });
     }
     if (url.hostname === `tenant-${tenant}.aws.cognee.ai`) {
       if (request.method === "GET") {

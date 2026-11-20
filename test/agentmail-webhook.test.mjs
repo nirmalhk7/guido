@@ -22,7 +22,7 @@ const storedMessage = {
   labels: ["received"],
 };
 
-async function setup(t, guildStatus = 201, message = storedMessage, amplitudeStatus) {
+async function setup(t, guildStatus = 201, message = storedMessage, amplitudeStatus, probability = 0.8, gate = true) {
   assert.ok(existsSync(route), "AgentMail needs an inbound webhook route");
   const { POST } = await import(route);
   for (const [key, value] of Object.entries({
@@ -30,6 +30,8 @@ async function setup(t, guildStatus = 201, message = storedMessage, amplitudeSta
     AGENTMAIL_INBOX_ID: inbox,
     AGENTMAIL_API_KEY: "inbox-read-key",
     GUILD_TRIGGER_KEY: "trigger-id:trigger-secret",
+    SUPERLINKED_API_KEY: "sie-test",
+    STATSIG_SDK_KEY: "statsig-test",
     AMPLITUDE_API_KEY: amplitudeStatus === undefined ? "" : "amplitude-test",
   })) {
     const previous = process.env[key];
@@ -47,6 +49,12 @@ async function setup(t, guildStatus = 201, message = storedMessage, amplitudeSta
     if (request.url === "https://api2.amplitude.com/2/httpapi") {
       return Response.json({}, { status: amplitudeStatus });
     }
+    if (request.url === "https://api.superlinked.com/v1/decisions") {
+      return Response.json({ answers: [{ type: "predicate", name: "rental_needed", probability }] });
+    }
+    if (request.url === "https://api.statsig.com/v1/check_gate") {
+      return Response.json({ name: "BROWSERBASE_ENABLED", value: gate });
+    }
     return Response.json({ id: "guild-session" }, { status: guildStatus });
   });
   const deliver = (body = event, credential = token) => POST(new Request("https://relay.example/api/agentmail", {
@@ -61,20 +69,21 @@ test("an inbound webhook fetches the full email and starts Guido on Guild", asyn
   const { deliver, requests } = await setup(t);
   const response = await deliver();
   assert.equal(response.status, 204);
-  assert.equal(requests.length, 2);
+  assert.equal(requests.length, 4);
   assert.equal(requests[0].url, "https://api.agentmail.to/v0/inboxes/guido%40agentmail.to/messages/%3Cinbound%2F1%40example.com%3E");
   assert.equal(requests[0].method, "GET");
   assert.equal(requests[0].headers.get("Authorization"), "Bearer inbox-read-key");
-  assert.equal(requests[1].url, "https://api.guild.ai/v1/workspaces/nirmalhk7/tokensandhackathon/sessions");
-  assert.equal(requests[1].method, "POST");
-  assert.equal(requests[1].headers.get("Authorization"), "Basic dHJpZ2dlci1pZDp0cmlnZ2VyLXNlY3JldA==");
-  const input = await requests[1].json();
+  assert.equal(requests[3].url, "https://api.guild.ai/v1/workspaces/nirmalhk7/tokensandhackathon/sessions");
+  assert.equal(requests[3].method, "POST");
+  assert.equal(requests[3].headers.get("Authorization"), "Basic dHJpZ2dlci1pZDp0cmlnZ2VyLXNlY3JldA==");
+  const input = await requests[3].json();
   assert.equal(input.session_type, "api_trigger");
   assert.deepEqual(JSON.parse(input.agent_input.text), {
     subject: "Rental request",
     message: "New text from the full message.",
     sent_at: "2026-11-20T20:00:00Z",
     agentmail_event_id: "event-1",
+    rental_provider: "browserbase",
   });
 });
 
@@ -99,11 +108,11 @@ test("a Guild API trigger reports session acceptance without email data", async 
   assert.ok(upload, "the relay must report the Guild session to Amplitude");
   const { api_key, events } = await upload.json();
   assert.equal(api_key, "amplitude-test");
-  assert.equal(events.length, 1);
-  const [span] = events;
+  assert.equal(events.length, 4);
+  const span = events.find(({ event_properties }) => event_properties["[Agent] Span Name"] === "guild.session.start");
   assert.equal(span.event_type, "[Agent] Span");
   assert.equal(span.event_properties["[Agent] Agent ID"], "guido");
-  assert.equal(span.event_properties["[Agent] Session ID"], "guild-session");
+  assert.equal(span.event_properties["[Agent] Guild Session ID"], "guild-session");
   assert.equal(span.event_properties["[Agent] Output State"], "accepted");
   assert.equal(span.event_properties["[Agent] Is Error"], false);
   assert.ok(span.event_properties["[Agent] Latency Ms"] >= 0);
@@ -125,6 +134,24 @@ test("an unauthenticated sender and HTML-only message still reach Guido", async 
     labels: ["received", "unauthenticated"],
   });
   assert.equal((await deliver({ ...event, event_type: "message.received.unauthenticated" })).status, 204);
-  const input = await requests[1].json();
+  const input = await requests[3].json();
   assert.equal(JSON.parse(input.agent_input.text).message, "<p>HTML only.</p>");
+});
+
+test("a below-threshold incoming message is acknowledged without starting Guido", async (t) => {
+  const { deliver, requests } = await setup(t, 201, storedMessage, 200, 0.49);
+  assert.equal((await deliver()).status, 204);
+  assert.deepEqual(requests.map((request) => new URL(request.url).hostname), [
+    "api.agentmail.to", "api.superlinked.com", "api2.amplitude.com",
+  ]);
+});
+
+test("AgentMail gives Guild the provider selected after Superlinked's decision", async (t) => {
+  const { deliver, requests } = await setup(t, 201, storedMessage, undefined, 0.8, false);
+  assert.equal((await deliver()).status, 204);
+  assert.deepEqual(requests.map((request) => new URL(request.url).hostname), [
+    "api.agentmail.to", "api.superlinked.com", "api.statsig.com", "api.guild.ai",
+  ]);
+  const { agent_input } = await requests.at(-1).json();
+  assert.equal(JSON.parse(agent_input.text).rental_provider, "firedrill");
 });

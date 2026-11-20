@@ -1,69 +1,176 @@
 # Guido
 
-[Guido's email drafting agent](guild/email) drafts plain-text replies from a
-supplied subject and message. Guild integration definitions are available
-for Browserbase rental searches and Cognee memory.
+Guido reads incoming AgentMail messages and recent Gmail conversations, then
+uses [Superlinked Decisions](https://superlinked.com/docs/migrate/openai-decisions)
+to score whether the trip needs a rental car. Scores of 50% or less stop
+before Guild starts and produce no reply. Higher scores check the
+`BROWSERBASE_ENABLED` Statsig gate and start Guido in Guild using the selected
+rental provider.
 
-## Incoming email on Guild
+## Deploy Guido
 
-`POST /api/agentmail` starts the installed `guido` agent in Guild's
-`tokensandhackathon` workspace. The relay and Browserbase gateway share the
-`guido` Vercel project. Configure the relay with:
+Guild runs the drafting agent. You can host the AgentMail webhook, Gmail
+scanner, and rental gateway on Vercel or on your own Node.js host. Both options
+use the same [environment settings](.env.example) and need a public HTTPS
+origin for AgentMail and Guild to call.
 
-- `AGENTMAIL_INBOX_ID` for Guido's inbox.
-- `AGENTMAIL_API_KEY` scoped to that inbox, with message read access and
-  permission to read unauthenticated mail.
-- `AGENTMAIL_WEBHOOK_TOKEN`, a random secret AgentMail sends as the webhook's
-  `Authorization: Bearer <token>` header.
-- `GUILD_TRIGGER_KEY`, the combined key from a Guild API trigger assigned to
-  the installed `guido` agent.
+If you install Guido in your own Guild workspace, update the workspace in
+[`api/agentmail.ts`](api/agentmail.ts) for trigger mode and the workspace
+and agent IDs in [`lib/guido-email.ts`](lib/guido-email.ts) for runs that
+wait for a draft. Use Guild credentials for that installation.
 
-Register the relay's HTTPS URL as an inbox webhook for `message.received`
-and `message.received.unauthenticated`. Set `GUILD_API_KEY` and
-`GUIDO_MEMORY_SECRET` along with the Cognee and SingleStore settings below
-to enable trip recall on the relay. In this mode the relay acknowledges
-delivery after drafting and saving memory for verified senders. Allow the
-relay runtime to wait for Guild and for any rental search. A retry can reuse
-the draft once Cognee has recorded it.
+### Vercel
 
-With the Guild API trigger setup, the relay acknowledges delivery after Guild
-creates the session. A delivery retry can create another session for the same
-AgentMail event ID. Drafts appear in Guild's session history.
+Import the repository, select Node.js 24, and set the environment variables for
+the features you enable. Vercel serves the [Node.js API handlers](https://vercel.com/docs/functions/runtimes/node-js)
+from `api/`. [`vercel.json`](vercel.json) schedules Gmail scans every five
+minutes and sets a 450-second function limit for the scan. Use a plan that
+supports both settings. Set `CRON_SECRET` when enabling Gmail monitoring.
+
+### Self-host on Node.js
+
+Use Node.js 24 or later on a VM, container, or app host. From the repository
+root, save this example as `server.mjs`. It passes incoming requests to the
+existing handlers and forwards their status, headers, and body.
+
+```js
+import { createServer } from "node:http";
+import { POST as receiveMail } from "./api/agentmail.ts";
+import { GET as pollRental, POST as startRental } from "./api/browserbase.ts";
+import { GET as scanGmail } from "./api/gmail.ts";
+
+const routes = new Map([
+  ["POST /api/agentmail", receiveMail],
+  ["GET /api/browserbase", pollRental],
+  ["POST /api/browserbase", startRental],
+  ["GET /api/gmail", scanGmail],
+]);
+
+const port = Number(process.env.PORT ?? 3000);
+
+createServer(async (incoming, outgoing) => {
+  try {
+    const url = new URL(incoming.url, `http://localhost:${port}`);
+    const handler = routes.get(`${incoming.method} ${url.pathname}`);
+    if (!handler) {
+      outgoing.writeHead(404).end();
+      return;
+    }
+
+    const request = new Request(url, {
+      method: incoming.method,
+      headers: incoming.headers,
+      ...(incoming.method === "POST" && { body: incoming, duplex: "half" }),
+    });
+    const response = await handler(request);
+    const body = Buffer.from(await response.arrayBuffer());
+    outgoing.writeHead(response.status, Object.fromEntries(response.headers));
+    outgoing.end(body);
+  } catch {
+    outgoing.writeHead(500).end();
+  }
+}).listen(port, "0.0.0.0");
+```
+
+Install dependencies and run the server with the settings for your enabled
+features. Copy `.env.example` to `.env.local` and fill in those settings, or
+inject them through your host's environment and run `node server.mjs`.
+
+```sh
+npm ci --omit=dev
+node --env-file=.env.local server.mjs
+```
+
+Point your host's HTTPS ingress or reverse proxy at `PORT` (default `3000`).
+Preserve request headers and query strings. Set request timeouts for the
+webhook and scanner to allow several minutes when waiting for Guild, whose
+draft call alone can take up to five minutes.
+
+Register AgentMail's webhook at `https://YOUR_HOST/api/agentmail` and generate
+the Guild rental integration with the same HTTPS origin using the instructions
+below. If you enable Gmail monitoring, use your host's scheduler to run this
+request every five minutes with `CRON_SECRET` in the scheduler's environment.
+Allow only one scan at a time per mailbox.
+
+```sh
+curl --fail --silent --show-error \
+  -H "Authorization: Bearer ${CRON_SECRET}" \
+  https://YOUR_HOST/api/gmail
+```
+
+## Incoming mail
+
+Register `POST /api/agentmail` for AgentMail's `message.received` and
+`message.received.unauthenticated` events. Set `AGENTMAIL_INBOX_ID`,
+`AGENTMAIL_API_KEY`, `AGENTMAIL_WEBHOOK_TOKEN`, and `SUPERLINKED_API_KEY`.
+The AgentMail key needs access to read messages in Guido's inbox, including
+unauthenticated mail. AgentMail sends the webhook token as a bearer token.
+
+Set `GUILD_API_KEY` and `GUIDO_MEMORY_SECRET` with the Cognee and SingleStore
+settings to wait for the draft and record memory for verified senders.
+With just `GUILD_TRIGGER_KEY`, the relay acknowledges after Guild accepts
+the run. Drafts appear in Guild session history. A retry in trigger mode
+can create another Guild session for the same AgentMail event.
+
+## Gmail monitoring
+
+The scheduler calls `GET /api/gmail` with `Authorization: Bearer <CRON_SECRET>`.
+Set `CRON_SECRET`, `GMAIL_ADDRESS`, and the `GMAIL_CLIENT_ID`,
+`GMAIL_CLIENT_SECRET`, and `GMAIL_REFRESH_TOKEN` for that mailbox. Enable
+the Gmail API and grant offline access with the
+[`gmail.readonly` scope](https://developers.google.com/workspace/gmail/api/auth/scopes).
+Set `SUPERLINKED_API_KEY`, `GUILD_API_KEY`, the SingleStore settings, and an
+AgentMail key with message read and send access to Guido's inbox.
+
+The first scan records the mailbox's current Gmail history ID. Later scans
+classify newly added conversations, using up to five recent messages per
+thread as context. The SingleStore user needs CREATE, SELECT, INSERT, and
+UPDATE access for `guido_gmail_cursor`. If Gmail expires the checkpoint,
+the scanner reports a failure. Review missed mail before resetting it.
+
+For a qualified Gmail trip, Guido waits for Guild to finish, then sends the
+result through its AgentMail inbox to the authenticated Gmail address. The
+scanner skips mail from Guido's inbox and uses a stable AgentMail label to
+look up a previous send if it retries the same Gmail message.
+
+## Rental providers
+
+The relay and rental gateway check Statsig as user ID `guido-guild`.
+When `BROWSERBASE_ENABLED` is on, Guido uses Browserbase to compare Hertz,
+Avis, and Enterprise and stops before booking. When the gate is explicitly
+off, the gateway reads synthetic prices from Firedrill and labels the
+options as simulated. An unavailable gate blocks both providers. The
+gateway checks the flag again and stops if the selected provider changed.
+
+Set `STATSIG_SDK_KEY`, `BROWSERBASE_API_KEY`,
+`GUIDO_BROWSERBASE_GATEWAY_TOKEN`, and `FIREDRILL_RENTAL_CONNECTION` on the
+deployment. Use a current [Firedrill tool session](https://docs.firedrill.run/tools/sessions)
+with the synthetic Web rate cards in [firedrill/rental-pricing](firedrill/rental-pricing).
+The gateway reads Hertz, Enterprise, and Avis rate cards, then applies the
+requested vehicle classes, USD budget, and duration rounded up to rental
+days. The Denver location catalog is a separate seeded page. Rates are
+fixtures and do not represent real branch availability.
+
+For local verification, use the loopback `invoke` URL from `firedrill tools
+access` as `FIREDRILL_RENTAL_INVOKE_URL`. Vercel requires a hosted scoped
+connection and cannot use that local endpoint. Renew or replace the hosted
+connection before the originating session or credential expires.
+
+Generate the Guild integration with
+`node guild/browserbase/gated-contract.mjs <https-origin>`. Import it into
+Guild, set its `X-Guido-Tool-Key` credential to match the gateway token,
+and publish the updated [Guido prompt](guild/email/PROMPT.md).
 
 ## Amplitude Agent Analytics
 
-Set `AMPLITUDE_API_KEY` to the US Amplitude project's API key in Vercel
-Production and in `.env.local` for local runs. The email relay reports Guild
-session acceptance or start failure. When the relay waits for a draft, it
-reports completion or failure and closes the Amplitude session. The events
-include the Guild session ID, elapsed time, and outcome. Email and draft
-content, sender addresses, memory, and tool payloads stay out of telemetry.
-
-Sessions opened directly in Guild do not pass through the relay.
-
-## Rental-car search
-
-Guido's email agent uses Browserbase to compare rental prices on the official
-Hertz, Avis, and Enterprise sites. It checks all three with the same itinerary
-and reports the cheapest verified total and each vendor's outcome. Searches
-stop before booking.
-
-Guild routes rental tools through the Guido Vercel gateway at
-`/api/browserbase`. The gateway checks the Statsig gate
-`guido_browserbase` as the fixed service identity `guido-guild` before
-starting a run or fetching results. An off, missing, or unavailable gate
-blocks Browserbase. Statsig receives the service ID and no email data.
-
-Deployment needs `STATSIG_SDK_KEY`, `BROWSERBASE_API_KEY`, and
-`GUIDO_BROWSERBASE_GATEWAY_TOKEN` in the Vercel project's Production
-environment. Guild uses a dedicated gateway token as `X-Guido-Tool-Key`.
-The Browserbase API key stays in Vercel. To regenerate the Guild integration
-contract for a different gateway deployment, run
-`node guild/browserbase/gated-contract.mjs <https-origin>`.
-
-To turn off the tools, disable the gate in Statsig. To restore them, enable
-the gate with a passing rule for user ID `guido-guild`. An already running
-Browserbase job may finish while the gate is off.
+Set `AMPLITUDE_API_KEY` for the US Amplitude project. Agent Analytics spans
+record message reads, Superlinked scores, Statsig decisions, Guild runs,
+rental-provider requests, memory operations, and Gmail result delivery.
+The relay and rental gateway use a shared trace ID. Spans include timing
+and outcome. Email text, sender addresses, drafts, and tool payloads stay
+out of Amplitude. Guild's own session log retains the model-level details.
+Trigger-only AgentMail runs report acceptance. Runs that wait for Guild
+also report completion or failure and close the Amplitude session.
 
 ## Draft an email with Cognee memory
 
