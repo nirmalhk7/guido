@@ -1,6 +1,7 @@
 # Audit-trail page: UI plan
 
-Status: **Phase 2, building** (Rashmi said "go"). Decisions made: wording-only
+Status: **Phase 2: steps 1–4 built** on `rashmi/audit-ui` (see `frontend/README.md`
+to run it; add `?demo=1` to preview every state). Decisions made: wording-only
 keys may be added to `contracts/display_fields.json` (no data fields change),
 and the Figma takeaways are confirmed below. Open questions 2–4 in §5 use my
 proposed defaults until Rashmi says otherwise.

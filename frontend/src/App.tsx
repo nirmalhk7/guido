@@ -10,6 +10,7 @@ import { Results } from "@/components/Results";
 import { HowIDecided, buildSteps, type PriorityChange } from "@/components/HowIDecided";
 import { LoadingView } from "@/components/LoadingView";
 import { EmptyState } from "@/components/EmptyState";
+import { Confirmation, approvalSteps } from "@/components/Confirmation";
 import { DemoSwitcher } from "@/demo/DemoSwitcher";
 import { DEMO_STATES, demoInput, shiftKeepingOffset, type DemoStateKey, type PageInput } from "@/demo/variants";
 
@@ -49,6 +50,12 @@ function Page({ input }: { input: PageInput }) {
   const [searchingAgain, setSearchingAgain] = useState(false);
   const [priority, setPriority] = useState<RankingPriority>(result.trip_request.ranking_priority);
   const [changes, setChanges] = useState<PriorityChange[]>([]);
+  // Approval recorded in the data (already approved) or made on this page.
+  const [approval, setApproval] = useState<{ optionId: string; at: string; here: boolean } | null>(() =>
+    result.confirmation?.human_approved && result.confirmation.approved_at && result.winner_summary
+      ? { optionId: result.winner_summary.recommended_option_id, at: result.confirmation.approved_at, here: false }
+      : null,
+  );
   const now = Date.now();
 
   // A slow company: show what we have, then mark it as not answering in time.
@@ -59,7 +66,13 @@ function Page({ input }: { input: PageInput }) {
   }, [input.pendingForMs, pending.length]);
 
   const ranked = useMemo(() => rankOptions(result.options, priority), [result, priority]);
-  const steps = useMemo(() => buildSteps(result, priority, changes), [result, priority, changes]);
+  const recommended = ranked.find((o) => o.status === "recommended");
+  // Once approved, the confirmation stays on the approved car even if the priority changes.
+  const bookingOption = (approval && ranked.find((o) => o.option_id === approval.optionId)) || recommended;
+  const steps = useMemo(() => {
+    const extra = approval?.here && bookingOption ? approvalSteps(result, bookingOption, approval.at) : [];
+    return buildSteps(result, priority, changes, extra);
+  }, [result, priority, changes, approval, bookingOption]);
   const kind = pageKind(result);
   const finishLoading = useCallback(() => setLoading(false), []);
 
@@ -110,6 +123,16 @@ function Page({ input }: { input: PageInput }) {
           <div className="animate-fade-up space-y-6">
             <PrioritySelector value={priority} onChange={changePriority} />
             <Results result={result} ranked={ranked} priority={priority} now={now} pending={pending} />
+            {bookingOption && (
+              <Confirmation
+                result={result}
+                option={bookingOption}
+                approvedAt={approval?.at ?? null}
+                disabled={outdated}
+                onApprove={() => setApproval({ optionId: bookingOption.option_id, at: localNow(result), here: true })}
+                onChange={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              />
+            )}
             <HowIDecided steps={steps} ranked={ranked} />
           </div>
         ) : (

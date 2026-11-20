@@ -379,6 +379,7 @@
     "dates_line": "{pickup} to {return} ({days} days)",
     "driver_line": "Driver {number}, age {age}",
     "young_driver_suffix": "(young driver fee applies)",
+    "approved_step_name": "You approved",
     "approved_step_finding": "You approved booking {what} for {total}.",
     "handoff_step_name": "Booking handed off",
     "handoff_simulated_finding": "Completed a simulated booking for the demo. Nothing was paid and no card details were used.",
