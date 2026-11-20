@@ -25,6 +25,7 @@ const pill = (text, kind) => {
     primary: `background:${T.brand};color:#ffffff;font-weight:600;`,
     soft: `background:${T.brandSoft};color:${T.brandStrong};font-weight:600;`,
     tag: `background:${T.brandSoft};color:${T.brandStrong};font-weight:500;`,
+    warn: `background:${T.warnBg};color:${T.warnText};font-weight:600;`,
   }[kind];
   return `<span style="display:inline-block;margin:0 4px 6px 0;padding:4px 10px;border-radius:999px;font-family:${T.font};font-size:13px;line-height:16px;${styles}">${esc(text)}</span>`;
 };
@@ -61,7 +62,9 @@ function optionCard(c, m) {
     `<p style="margin:2px 0 0;font-family:${T.font};font-size:15px;line-height:1.4;color:${T.muted};">${esc(c.car)}</p>`,
     `<p style="margin:6px 0 0;font-family:${T.font};font-size:15px;line-height:1.4;color:${T.text};">${esc(c.branchLine)}</p>`,
     c.why ? `<p style="margin:10px 0 0;font-family:${T.font};font-size:16px;line-height:1.45;color:${T.text};">${esc(c.why)}</p>` : "",
-    c.tags.length ? `<div style="margin-top:10px;font-size:0;line-height:0;">${c.tags.map((t) => pill(t, "tag")).join("")}</div>` : "",
+    c.tags.length || c.stale
+      ? `<div style="margin-top:10px;font-size:0;line-height:0;">${c.stale ? pill(c.staleLabel, "warn") : ""}${c.tags.map((t) => pill(t, "tag")).join("")}</div>`
+      : "",
   ].join("");
 
   const priceSize = c.hasPrice ? (c.recommended ? 32 : 24) : 15;
@@ -69,12 +72,7 @@ function optionCard(c, m) {
     <p class="price-big" style="margin:0;font-family:${T.font};font-size:${priceSize}px;line-height:1.1;font-weight:${c.hasPrice ? 600 : 500};letter-spacing:-0.01em;color:${c.hasPrice ? T.text : T.muted};white-space:nowrap;">${esc(c.total)}</p>
     ${c.hasPrice ? `<p style="margin:4px 0 0;font-family:${T.font};font-size:13px;line-height:1.3;color:${T.muted};">${esc(c.totalCaption)}</p>` : ""}`;
 
-  const facts = c.facts
-    .map((f) => `<p style="margin:0 0 2px;font-family:${T.font};font-size:14px;line-height:1.45;color:${T.muted};">${esc(f)}</p>`)
-    .join("");
-  const checked = c.checked
-    ? `<p style="margin:8px 0 0;font-family:${T.font};font-size:13px;line-height:1.4;color:${c.stale ? T.warnText : T.muted};">${c.stale ? "&#9888;&#xFE0E; " : ""}${esc(c.checked)}</p>`
-    : "";
+  const facts = `<p style="margin:0;font-family:${T.font};font-size:14px;line-height:1.45;color:${T.muted};">${esc(c.facts)}</p>`;
 
   const inner = `
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -83,7 +81,7 @@ function optionCard(c, m) {
       <td class="stack price-col" valign="top" align="right" width="150" style="width:150px;text-align:right;">${right}</td>
     </tr>
   </table>
-  <div style="margin-top:14px;padding-top:12px;border-top:1px solid ${T.border};">${facts}${checked}</div>
+  <div style="margin-top:14px;padding-top:12px;border-top:1px solid ${T.border};">${facts}</div>
   ${
     c.recommended && c.hasPrice
       ? `${spacer(16)}${button(m.button.label, m.links.confirm_url)}

@@ -8,6 +8,8 @@
   "max_company_chars": 32,
   "max_branch_chars": 44,
   "max_not_a_fit_listed": 5,
+  "max_tags_recommended": 3,
+  "max_tags_alternative": 2,
   "placeholders": {
     "audit_url": "{{audit_url}}",
     "confirm_url": "{{confirm_url}}",

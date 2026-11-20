@@ -17,7 +17,7 @@ Branch not listed
 Cancellation terms not provided
 
 Review and book: {{confirm_url}}
-Opens a summary for you to check. Nothing is booked or paid until you confirm on the rental company's site.
+Nothing is booked or paid until you confirm.
 
 ALSO GOOD OPTIONS
 

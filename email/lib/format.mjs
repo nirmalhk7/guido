@@ -67,6 +67,7 @@ function atOwnClock(iso, options) {
 }
 
 export const dateTime = (iso) => atOwnClock(iso, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+export const dayDate = (iso) => atOwnClock(iso, { weekday: "short", month: "short", day: "numeric" });
 export const shortDate = (iso) => atOwnClock(iso, { month: "short", day: "numeric" });
 export const monthOf = (iso) => atOwnClock(iso, { month: "short" });
 export const dayOf = (iso) => atOwnClock(iso, { day: "numeric" });

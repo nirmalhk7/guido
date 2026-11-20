@@ -21,41 +21,30 @@ Midsize SUV · 5 seats
 Pick up and return: PLACEHOLDER Love Field neighborhood branch
 PLACEHOLDER Renting near Love Field skips airport fees and saves about $67 compared with the usual DFW airport…
 Lowest total cost · No airport fees · Unlimited miles
-15 min to get there · PLACEHOLDER Rideshare from Love Field, about 15 min
-Free cancellation until Tue, Nov 24, 6:00 PM
-OctoTrip · checked Fri, Nov 20, 1:40 PM
+15 min to get there · Free cancellation until Tue, Nov 24
 
 Review and book: {{confirm_url}}
-Opens a summary for you to check. Nothing is booked or paid until you confirm on the rental company's site.
+Nothing is booked or paid until you confirm.
 
 ALSO GOOD OPTIONS
 
 [Also a good option] PLACEHOLDER Rental Co B: $415.16 total for your trip
 Midsize SUV · 5 seats
 Pick up and return: PLACEHOLDER DFW Airport rental car center
-PLACEHOLDER Only about $2 more than the recommended car, with the closest pickup and the most flexible cancellation.
-Closest pickup · Most flexible cancellation · Free shuttle · Unlimited miles
-10 min to get there · PLACEHOLDER Free airport shuttle
-Free cancellation up to pickup
-OctoTrip · checked Fri, Nov 20, 1:40 PM
+Closest pickup · Most flexible cancellation
+10 min to get there · Free cancellation up to pickup
 
 [Also a good option] PLACEHOLDER Rental Co H: $425.70 total for your trip
 Midsize SUV · 5 seats
 Pick up and return: PLACEHOLDER Love Field neighborhood branch
-PLACEHOLDER Lowest total for your trip, even after the young-driver fee and a short rideshare to the branch.
-Lowest total cost · No airport fees · Unlimited miles
-15 min to get there · PLACEHOLDER Rideshare from Love Field, about 15 min
-Free cancellation until Tue, Nov 24, 6:00 PM
-OctoTrip · checked Fri, Nov 20, 1:40 PM
+Lowest total cost · No airport fees
+15 min to get there · Free cancellation until Tue, Nov 24
 
 [Also a good option] PLACEHOLDER Rental Co I: $440.16 total for your trip
 Midsize SUV · 5 seats
 Pick up and return: PLACEHOLDER DFW Airport rental car center
-PLACEHOLDER Only about $2 more than the recommended car, with the closest pickup and the most flexible cancellation.
-Closest pickup · Most flexible cancellation · Free shuttle · Unlimited miles
-10 min to get there · PLACEHOLDER Free airport shuttle
-Free cancellation up to pickup
-OctoTrip · checked Fri, Nov 20, 1:40 PM
+Closest pickup · Most flexible cancellation
+10 min to get there · Free cancellation up to pickup
 
 4 more options didn't fit your trip. See why on the results page.
 See all 16 options: {{audit_url}}

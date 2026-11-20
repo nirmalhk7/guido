@@ -11,7 +11,7 @@ function cardText(c, m) {
     c.branchLine,
     ...(c.why ? [c.why] : []),
     ...(c.tags.length ? [c.tags.join(" · ")] : []),
-    ...c.facts,
+    c.facts,
     ...(c.checked ? [c.checked] : []),
   ];
   if (c.recommended && c.hasPrice) lines.push("", `${m.button.label}: ${m.links.confirm_url}`, m.button.note);

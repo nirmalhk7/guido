@@ -412,7 +412,7 @@
     "pickup_return_same": "Pick up and return: {branch}",
     "pickup_return_different": "Pick up: {pickup} · Return: {dropoff}",
     "review_button": "Review and book",
-    "review_note": "Opens a summary for you to check. Nothing is booked or paid until you confirm on the rental company's site.",
+    "review_note": "Nothing is booked or paid until you confirm.",
     "see_all": "See all options",
     "see_all_count": "See all {count} options",
     "not_a_fit_line_one": "1 more option didn't fit your trip. See why on the results page.",

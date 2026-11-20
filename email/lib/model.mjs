@@ -2,7 +2,7 @@
 // model" for the email: every limit and every fallback is applied here, so the
 // HTML and plain-text versions show exactly the same, always-complete content.
 import { readFileSync } from "node:fs";
-import { dateRange, dateTime, fill, minutesBetween, money, num, str, trim, validIso } from "./format.mjs";
+import { dateRange, dateTime, dayDate, fill, minutesBetween, money, num, str, trim, validIso } from "./format.mjs";
 
 const copy = JSON.parse(readFileSync(new URL("../../contracts/display_fields.json", import.meta.url), "utf8"));
 export { copy };
@@ -31,7 +31,8 @@ function agoText(minutes) {
 function cancellationText(c) {
   const l = copy.cancellation_labels;
   if (!c || typeof c !== "object") return E.fallback_cancellation;
-  if (c.type === "free") return validIso(c.free_until) ? fill(l.free_until, { free_until: dateTime(c.free_until) }) : l.free_until_pickup;
+  // Day only (no clock time) to keep cards short; the full terms are on the web page.
+  if (c.type === "free") return validIso(c.free_until) ? fill(l.free_until, { free_until: dayDate(c.free_until) }) : l.free_until_pickup;
   if (c.type === "partial") return money(c.fee) ? fill(l.partial, { fee: money(c.fee) }) : str(c.summary) ?? E.fallback_cancellation;
   if (c.type === "non_refundable") return l.non_refundable;
   return str(c.summary) ?? E.fallback_cancellation;
@@ -53,21 +54,17 @@ function card(o, { isRecommended, why, currency, sentAt, cfg }) {
   const carClass = str(o.car_class);
   const car = carClass ? (seats ? fill(copy.option_card.car_line, { car_class: carClass, seats }) : carClass) : E.fallback_car;
 
+  // One short line: getting there · cancellation. Where prices came from lives once, at the bottom.
   const minutes = num(o.travel_to_branch?.minutes);
-  const facts = [];
-  if (minutes !== undefined) {
-    const note = trim(o.travel_to_branch?.note, 64);
-    facts.push(fill(copy.option_card.travel_line, { minutes }) + (note ? ` · ${note}` : ""));
-  }
-  facts.push(cancellationText(o.cancellation));
+  const facts = [
+    ...(minutes !== undefined ? [fill(copy.option_card.travel_line, { minutes })] : []),
+    cancellationText(o.cancellation),
+  ].join(" · ");
 
-  const captured = o.source?.captured_at;
-  const age = minutesBetween(captured, sentAt);
+  // Only flag the card's price source when it's out of date.
+  const age = minutesBetween(o.source?.captured_at, sentAt);
   const stale = age !== undefined && age > cfg.stale_after_minutes;
-  const src = sourceLabel(o.source?.name);
-  let checked;
-  if (stale) checked = fill(E.stale_card_note, { ago: agoText(age) });
-  else if (src && validIso(captured)) checked = fill(E.checked_line, { source: src.charAt(0).toUpperCase() + src.slice(1), when: dateTime(captured) });
+  const checked = stale ? fill(E.stale_card_note, { ago: agoText(age) }) : undefined;
 
   return {
     id: str(o.option_id) ?? "",
@@ -76,14 +73,19 @@ function card(o, { isRecommended, why, currency, sentAt, cfg }) {
     company: trim(o.brand, cfg.max_company_chars) ?? E.fallback_company,
     car,
     branchLine,
-    why: trim(why, cfg.max_reason_chars),
-    tags: (Array.isArray(o.tags) ? o.tags : []).map((t) => label(copy.tag_labels, t, undefined)).filter(Boolean).slice(0, 4),
+    // The "why" sentence only on the top pick; alternatives show strengths as tags.
+    why: isRecommended ? trim(why, cfg.max_reason_chars) : undefined,
+    tags: (Array.isArray(o.tags) ? o.tags : [])
+      .map((t) => label(copy.tag_labels, t, undefined))
+      .filter(Boolean)
+      .slice(0, isRecommended ? cfg.max_tags_recommended : cfg.max_tags_alternative),
     total: money(o.total_trip_cost, currency) ?? E.fallback_price,
     hasPrice: num(o.total_trip_cost) !== undefined,
     totalCaption: copy.option_card.total_caption,
     facts,
     checked,
     stale,
+    staleLabel: copy.freshness.old_price_label,
   };
 }
 

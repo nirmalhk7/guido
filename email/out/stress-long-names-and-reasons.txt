@@ -20,33 +20,25 @@ Ranked by lowest total cost
 Midsize SUV · 5 seats
 Pick up and return: PLACEHOLDER Dallas Fort Worth…
 PLACEHOLDER This option is a very good choice because it has a remarkably low base rate, waives the airport concession…
-Lowest total cost · Closest pickup · Most flexible cancellation · Free shuttle
-15 min to get there · PLACEHOLDER Take the free terminal shuttle from lower level…
-Free cancellation until Tue, Nov 24, 6:00 PM
-OctoTrip · checked Fri, Nov 20, 1:40 PM
+Lowest total cost · Closest pickup · Most flexible cancellation
+15 min to get there · Free cancellation until Tue, Nov 24
 
 Review and book: {{confirm_url}}
-Opens a summary for you to check. Nothing is booked or paid until you confirm on the rental company's site.
+Nothing is booked or paid until you confirm.
 
 ALSO GOOD OPTIONS
 
 [Also a good option] PLACEHOLDER Extraordinarily…: $415.16 total for your trip
 Midsize SUV · 5 seats
 Pick up and return: PLACEHOLDER Dallas Fort Worth…
-PLACEHOLDER This option is a very good choice because it has a remarkably low base rate, waives the airport concession…
-Lowest total cost · Closest pickup · Most flexible cancellation · Free shuttle
-10 min to get there · PLACEHOLDER Take the free terminal shuttle from lower level…
-Free cancellation up to pickup
-OctoTrip · checked Fri, Nov 20, 1:40 PM
+Lowest total cost · Closest pickup
+10 min to get there · Free cancellation up to pickup
 
 [Also a good option] PLACEHOLDER Extraordinarily…: $480.55 total for your trip
 Midsize SUV · 5 seats
 Pick up and return: PLACEHOLDER Dallas Fort Worth…
-PLACEHOLDER This option is a very good choice because it has a remarkably low base rate, waives the airport concession…
-Lowest total cost · Closest pickup · Most flexible cancellation · Free shuttle
-10 min to get there · PLACEHOLDER Take the free terminal shuttle from lower level…
-Free cancellation until Mon, Nov 23, 6:00 PM
-Prices saved earlier · checked Fri, Nov 20, 1:15 PM
+Lowest total cost · Closest pickup
+10 min to get there · Free cancellation until Mon, Nov 23
 
 4 more options didn't fit your trip. See why on the results page.
 See all 7 options: {{audit_url}}

@@ -52,7 +52,7 @@ dates please") should start a new search; the email tells them they can do that.
 |---|---|
 | Subject, headline | `trip_request.start_area` (text before the comma), `pickup_datetime`, `return_datetime`, count of options that fit, recommended `brand` and `total_trip_cost` |
 | Trip recap | `trip_request.pickup_datetime`, `return_datetime`, `travelers`, `drivers[].age`, `car_class`, `max_travel_minutes_to_branch`, `one_way_ok`; "Ranked by" from `winner_summary.ranking_priority_used`, else `trip_request.ranking_priority` |
-| Option cards | `brand`, `car_class`, `seats`, `pickup_branch`, `dropoff_branch`, `total_trip_cost`, `tags`, `reason` (`winner_summary.one_line_explanation` for the top pick), `travel_to_branch.minutes` / `.note`, `cancellation`, `source.name`, `source.captured_at`, `status`, `rank` |
+| Option cards | `brand`, `car_class`, `seats`, `pickup_branch`, `dropoff_branch`, `total_trip_cost`, `tags` (max 3 on the top pick, 2 on others), `status`, `rank`, `travel_to_branch.minutes`, `cancellation`; the "why" sentence (`winner_summary.one_line_explanation`, else `reason`) only on the top pick; `source.captured_at` only to flag an "Older price" |
 | Coverage line | `coverage.providers[].provider`, `.result`, `.reason` |
 | Where prices came from | `data_source.environment`, each option's `source.name` and `source.captured_at` |
 | Empty states | the trip fields above, plus not-a-fit options' `brand` and `reason` |

@@ -21,12 +21,10 @@ Midsize SUV · 5 seats
 Pick up and return: PLACEHOLDER Love Field neighborhood branch
 PLACEHOLDER Renting near Love Field skips airport fees and saves about $67 compared with the usual DFW airport…
 Lowest total cost · No airport fees · Unlimited miles
-15 min to get there · PLACEHOLDER Rideshare from Love Field, about 15 min
-Free cancellation until Tue, Nov 24, 6:00 PM
-OctoTrip · checked Fri, Nov 20, 1:40 PM
+15 min to get there · Free cancellation until Tue, Nov 24
 
 Review and book: {{confirm_url}}
-Opens a summary for you to check. Nothing is booked or paid until you confirm on the rental company's site.
+Nothing is booked or paid until you confirm.
 
 See all options: {{audit_url}}
 
