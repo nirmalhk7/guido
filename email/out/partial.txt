@@ -1,4 +1,4 @@
-Subject: Guido found a car for your Dallas trip: PLACEHOLDER Rental Co A, $413.20
+Subject: Guido found a car for your Dallas trip: Enterprise, $413.20
 
 Guido
 
@@ -16,7 +16,7 @@ Branch distance: Up to 30 min to the branch
 Drop-off: Return to the same place
 Ranked by lowest total cost
 
-[Recommended] PLACEHOLDER Rental Co A: $413.20 total for your trip
+[Recommended] Enterprise: $413.20 total for your trip
 Midsize SUV · 5 seats
 Pick up and return: PLACEHOLDER Love Field neighborhood branch
 PLACEHOLDER Renting near Love Field skips airport fees and saves about $67 compared with the usual DFW airport…
@@ -28,13 +28,13 @@ Nothing is booked or paid until you confirm.
 
 ALSO GOOD OPTIONS
 
-[Also a good option] PLACEHOLDER Rental Co B: $415.16 total for your trip
+[Also a good option] Hertz: $415.16 total for your trip
 Midsize SUV · 5 seats
 Pick up and return: PLACEHOLDER DFW Airport rental car center
 Closest pickup · Most flexible cancellation
 10 min to get there · Free cancellation up to pickup
 
-[Also a good option] PLACEHOLDER Rental Co C: $480.55 total for your trip
+[Also a good option] Avis: $480.55 total for your trip
 Midsize SUV · 5 seats
 Pick up and return: PLACEHOLDER DFW Airport rental car center
 Closest pickup · Free shuttle
@@ -43,9 +43,9 @@ Closest pickup · Free shuttle
 4 more options didn't fit your trip. See why on the results page.
 See all 7 options: {{audit_url}}
 
-5 of 6 rental companies answered
-Didn't include all fees: PLACEHOLDER Rental Co E
-Didn't respond in time: PLACEHOLDER Rental Co F
+All 3 rental companies answered
+Didn't include all fees: Enterprise
+Didn't respond in time: Avis
 Couldn't check doesn't mean no cars. It means I couldn't get an answer.
 
 Want different dates or details? Just reply to this email and I'll search again.

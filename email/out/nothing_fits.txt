@@ -19,11 +19,11 @@ I found cars, but none fit your trip. Here's why each one was set aside.
 What I searched: 4 travelers, Wed, Nov 25, 6:00 PM to Sun, Nov 29, 12:00 PM, within 5 min of DFW, DAL
 
 Why nothing came up: Every car I found missed at least one of your needs:
-- PLACEHOLDER Rental Co A: PLACEHOLDER About 15 minutes from the airport, more than your 5-minute limit.
-- PLACEHOLDER Rental Co B: PLACEHOLDER About 10 minutes from the airport, more than your 5-minute limit.
-- PLACEHOLDER Rental Co C: PLACEHOLDER About 10 minutes from the airport, more than your 5-minute limit.
-- PLACEHOLDER Rental Co D: PLACEHOLDER Closes at 5 PM on Wed, Nov 25, before your 6 PM pickup.
-- PLACEHOLDER Rental Co A: PLACEHOLDER You'd return the car to a different airport than where you picked it up, and you asked to return it to the…
+- Enterprise: PLACEHOLDER About 15 minutes from the airport, more than your 5-minute limit.
+- Hertz: PLACEHOLDER About 10 minutes from the airport, more than your 5-minute limit.
+- Avis: PLACEHOLDER About 10 minutes from the airport, more than your 5-minute limit.
+- Avis: PLACEHOLDER Closes at 5 PM on Wed, Nov 25, before your 6 PM pickup.
+- Enterprise: PLACEHOLDER You'd return the car to a different airport than where you picked it up, and you asked to return it to the…
 - and 2 more
 
 What could help:
@@ -35,8 +35,8 @@ What could help:
 Reply to this email with new details and I'll search again.
 See the full details: {{audit_url}}
 
-5 of 6 rental companies answered
-Didn't respond in time: PLACEHOLDER Rental Co F
+All 3 rental companies answered
+Didn't respond in time: Avis
 Couldn't check doesn't mean no cars. It means I couldn't get an answer.
 You can also write to {{reply_to_address}}.
 

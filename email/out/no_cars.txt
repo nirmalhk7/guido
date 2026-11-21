@@ -29,8 +29,8 @@ What could help:
 Reply to this email with new details and I'll search again.
 See the full details: {{audit_url}}
 
-5 of 6 rental companies answered
-Didn't respond in time: PLACEHOLDER Rental Co F
+2 of 3 rental companies answered
+Didn't respond in time: Avis
 Couldn't check doesn't mean no cars. It means I couldn't get an answer.
 You can also write to {{reply_to_address}}.
 
