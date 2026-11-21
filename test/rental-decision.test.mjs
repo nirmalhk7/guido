@@ -23,11 +23,11 @@ async function setup(t, probability, gate) {
     const request = new Request(url, init);
     calls.push(request);
     switch (request.url) {
-      case "https://api.superlinked.com/v1/decisions":
-        return Response.json({ answers: [
-          { type: "predicate", name: "rental_needed", probability },
-          { type: "predicate", name: "road_trip_detected", probability: 0.8 },
-        ] });
+      case "https://api.superlinked.com/v1/systemone":
+        return Response.json({ answers: {
+          rental_needed: { type: "choice", probabilities: { "rental car wanted": probability, "no rental request": 1 - probability } },
+          road_trip_detected: { type: "noul", noul: 0.8 },
+        } });
       case "https://api.statsig.com/v1/check_gate":
         return gate === undefined
           ? new Response(null, { status: 503 })
@@ -44,12 +44,14 @@ async function setup(t, probability, gate) {
   return { calls, run: () => observeAgentRun("agentmail", (trace) => decideRental(mail, trace)) };
 }
 
-test("the rental predicate tells Superlinked to qualify explicit quote requests", async (t) => {
+test("the rental decision gives Superlinked descriptive options for rental intent", async (t) => {
   const { run, calls } = await setup(t, 0.8, false);
   await run();
-  const { questions } = await calls[0].json();
-  const rental = questions.find(({ name }) => name === "rental_needed");
-  assert.match(rental.instructions, /explicit (?:request|ask)[^.]*\b(?:rent|quote)[^.]*\balways qualifies\b/i);
+  const { questions, state } = await calls[0].json();
+  assert.equal(questions.rental_needed?.type, "choice");
+  assert.match(questions.rental_needed.criteria["rental car wanted"], /rent a car|rental (?:prices|quotes)/i);
+  assert.match(questions.rental_needed.criteria["no rental request"], /unrelated|existing reservation/i);
+  assert.equal(state, "Subject: Yosemite trip\n\nLanding at SFO before driving to Yosemite.");
 });
 
 for (const probability of [0.49, 0.5]) {
@@ -72,12 +74,9 @@ for (const [gate, route] of [[true, "browserbase"], [false, "firedrill"]]) {
     const [decision, flag, telemetry] = calls;
     assert.equal(decision.headers.get("authorization"), "Bearer sie-test");
     const input = await decision.json();
-    assert.deepEqual(input.questions.map(({ name, type }) => ({ name, type })), [
-      { name: "rental_needed", type: "predicate" },
-      { name: "road_trip_detected", type: "predicate" },
-    ]);
-    assert.match(input.input, /Yosemite trip/);
-    assert.match(input.input, /Landing at SFO/);
+    assert.deepEqual(Object.keys(input.questions).sort(), ["rental_needed", "road_trip_detected"]);
+    assert.match(input.state, /Yosemite trip/);
+    assert.match(input.state, /Landing at SFO/);
     assert.deepEqual((await flag.json()).user, { userID: "guido-guild" });
     const { events } = await telemetry.json();
     const spans = events.filter(({ event_type }) => event_type === "[Agent] Span").map(({ event_properties }) => event_properties);

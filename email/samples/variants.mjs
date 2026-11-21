@@ -29,18 +29,17 @@ function shiftIso(iso, ms) {
 
 export const variants = {
   normal() {
-    // Everyone answered: Rental Co F replied with no cars instead of timing out.
     const r = beforeApproval(clone(sample));
-    r.coverage.providers = r.coverage.providers.map((p) => (p.result === "unavailable" ? { ...p, result: "no_cars", reason: null } : p));
+    r.coverage.providers = r.coverage.providers.map((p) => ({ ...p, result: "complete", reason: null }));
     const step = r.audit_trail.find((s) => s.step_type === "coverage");
-    if (step) step.plain_language_finding = "PLACEHOLDER All 6 rental companies answered. Rental Co F had no cars for your dates.";
+    if (step) step.plain_language_finding = "PLACEHOLDER All 3 rental companies answered with complete prices.";
     return { title: "Normal results", result: r };
   },
   partial() {
-    // As in the sample: Rental Co F didn't answer in time; plus Rental Co E sent incomplete prices.
+    // One Avis location timed out, and Enterprise omitted some fees.
     const r = beforeApproval(clone(sample));
     r.coverage.providers = r.coverage.providers.map((p) =>
-      p.provider.endsWith("Rental Co E") ? { ...p, result: "partial", reason: "missing_fees" } : p,
+      p.provider === "Enterprise" ? { ...p, result: "partial", reason: "missing_fees" } : p,
     );
     return { title: "Partial results", result: r };
   },
@@ -59,7 +58,13 @@ export const variants = {
   no_cars() {
     const r = beforeApproval(clone(sample));
     r.options = [];
-    r.coverage.providers = r.coverage.providers.map((p) => (p.result === "unavailable" ? p : { ...p, result: "no_cars", reason: null, options_returned: 0 }));
+    r.coverage.providers = r.coverage.providers.map((p) =>
+      p.reason === "timed_out"
+        ? { ...p, result: "unavailable", source: null, options_returned: 0 }
+        : { ...p, result: "no_cars", reason: null, options_returned: 0 },
+    );
+    const step = r.audit_trail.find((s) => s.step_type === "coverage");
+    if (step) step.plain_language_finding = "PLACEHOLDER 2 of 3 rental companies answered, but none have cars for your dates. Avis didn't respond in time.";
     r.winner_summary = null;
     r.confirmation = null;
     r.data_source.captured_at = null;

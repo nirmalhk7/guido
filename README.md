@@ -151,6 +151,13 @@ requested vehicle classes, USD budget, and duration rounded up to rental
 days. The Denver location catalog is a separate seeded page. Rates are
 fixtures and do not represent real branch availability.
 
+For the location-specific catalog, set `FIREDRILL_RENTAL_CATALOG_CONNECTION`
+to a hosted Firedrill connection JSON scoped to `web.fetch`. This connection
+takes precedence and the gateway reads `/rental-locations/bay-area` and
+`/rental-locations/denver` for each vendor on every search. It matches pickup
+branch names and supports SFO and DEN as aliases. Locations and classes absent
+from the catalog produce no simulated matches.
+
 For local verification, use the loopback `invoke` URL from `firedrill tools
 access` as `FIREDRILL_RENTAL_INVOKE_URL`. Vercel requires a hosted scoped
 connection and cannot use that local endpoint. Renew or replace the hosted
@@ -202,6 +209,24 @@ SELECT, INSERT, and UPDATE access. Cognee stores each trip reference in the
 sender's conversation history. For follow-ups, Guido loads the referenced
 itineraries and compares pickup and return locations and dates.
 
+## Travel guidance from Senso
+
+Guido can draw on approved travel and rental guides when drafting for a
+qualified Gmail or AgentMail trip. Add or select ready-to-search guides in
+Senso that are safe to quote to recipients. Set `SENSO_API_KEY` on the relay
+with a key restricted to those guides, and set `SENSO_CONTENT_IDS` to the
+comma-separated Senso `content_id` values. Publish the updated
+[Guild prompt](guild/email/PROMPT.md) so Guido uses the guidance in drafts.
+
+The relay retrieves up to three passages from those documents. It uses a
+road-trip query about mileage limits, cross-border rules, and roadside
+assistance when Superlinked detects a road trip, and general rental guidance
+otherwise. Email text, itinerary details, and sender history stay out of both
+queries. Drafting continues if Senso returns no
+usable context or the lookup fails. Live quotes and simulated estimates still
+come from the selected rental provider. See the
+[Senso context API quickstart](https://docs.senso.ai/docs/quickstart#5-use-your-own-model).
+
 ## Verify locally
 
 ```sh
@@ -211,5 +236,5 @@ npm run typecheck
 ```
 
 The tests cover Guild integration definitions, sender isolation, Cognee
-history, and SingleStore trip persistence and recall. They need no live
-credentials.
+history, SingleStore trip persistence and recall, and scoped Senso guidance
+with provider failure fallback. They need no live credentials.

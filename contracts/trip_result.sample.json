@@ -2,7 +2,7 @@
   "schema_version": "0.2.0",
   "currency": "USD",
   "money_unit": "cents",
-  "placeholder_notice": "PLACEHOLDER: This is sample data for designing and testing only (environment: fixture). Company names, branch names, prices, fees, cancellation terms, policies, times, driver ages and timestamps are all made up. Source names and the fallback story show how a real run could look; no source was actually called. The trip itself is just the demo default; the contract works for any trip.",
+  "placeholder_notice": "PLACEHOLDER: This is sample data for designing and testing only (environment: fixture). Company names are illustrative. Branch details, prices, fees, cancellation terms, policies, times, driver ages and timestamps are made up. Source names and the fallback story show how a real run could look; no source was actually called. The trip itself is just the demo default; the contract works for any trip.",
   "data_source": {
     "data_source": "octotrip_mcp",
     "captured_at": "2026-11-20T13:15:00-08:00",
@@ -17,12 +17,9 @@
       { "source": "placeholder_sample", "outcome": "skipped", "reason": null, "environment": "fixture", "attempted_at": null }
     ],
     "providers": [
-      { "provider": "PLACEHOLDER Rental Co A", "result": "complete", "reason": null, "source": "octotrip_mcp", "options_returned": 2 },
-      { "provider": "PLACEHOLDER Rental Co B", "result": "complete", "reason": null, "source": "octotrip_mcp", "options_returned": 2 },
-      { "provider": "PLACEHOLDER Rental Co C", "result": "complete", "reason": null, "source": "cached_snapshot", "options_returned": 1 },
-      { "provider": "PLACEHOLDER Rental Co D", "result": "complete", "reason": null, "source": "cached_snapshot", "options_returned": 1 },
-      { "provider": "PLACEHOLDER Rental Co E", "result": "complete", "reason": null, "source": "octotrip_mcp", "options_returned": 1 },
-      { "provider": "PLACEHOLDER Rental Co F", "result": "unavailable", "reason": "timed_out", "source": null, "options_returned": 0 }
+      { "provider": "Enterprise", "result": "complete", "reason": null, "source": "octotrip_mcp", "options_returned": 3 },
+      { "provider": "Hertz", "result": "complete", "reason": null, "source": "octotrip_mcp", "options_returned": 2 },
+      { "provider": "Avis", "result": "partial", "reason": "timed_out", "source": "cached_snapshot", "options_returned": 2 }
     ]
   },
   "trip_request": {
@@ -42,7 +39,7 @@
   "options": [
     {
       "option_id": "opt_a",
-      "brand": "PLACEHOLDER Rental Co A",
+      "brand": "Enterprise",
       "pickup_branch": "PLACEHOLDER Love Field neighborhood branch",
       "dropoff_branch": "PLACEHOLDER Love Field neighborhood branch",
       "pickup_time": "2026-11-25T18:00:00-06:00",
@@ -71,7 +68,7 @@
     },
     {
       "option_id": "opt_b",
-      "brand": "PLACEHOLDER Rental Co B",
+      "brand": "Hertz",
       "pickup_branch": "PLACEHOLDER DFW Airport rental car center",
       "dropoff_branch": "PLACEHOLDER DFW Airport rental car center",
       "pickup_time": "2026-11-25T18:00:00-06:00",
@@ -100,7 +97,7 @@
     },
     {
       "option_id": "opt_c",
-      "brand": "PLACEHOLDER Rental Co C",
+      "brand": "Avis",
       "pickup_branch": "PLACEHOLDER DFW Airport rental car center",
       "dropoff_branch": "PLACEHOLDER DFW Airport rental car center",
       "pickup_time": "2026-11-25T18:00:00-06:00",
@@ -129,7 +126,7 @@
     },
     {
       "option_id": "opt_d",
-      "brand": "PLACEHOLDER Rental Co D",
+      "brand": "Avis",
       "pickup_branch": "PLACEHOLDER Love Field area branch",
       "dropoff_branch": "PLACEHOLDER Love Field area branch",
       "pickup_time": "2026-11-25T18:00:00-06:00",
@@ -158,7 +155,7 @@
     },
     {
       "option_id": "opt_e",
-      "brand": "PLACEHOLDER Rental Co A",
+      "brand": "Enterprise",
       "pickup_branch": "PLACEHOLDER Love Field Airport counter",
       "dropoff_branch": "PLACEHOLDER DFW Airport rental car center",
       "pickup_time": "2026-11-25T18:00:00-06:00",
@@ -187,7 +184,7 @@
     },
     {
       "option_id": "opt_f",
-      "brand": "PLACEHOLDER Rental Co B",
+      "brand": "Hertz",
       "pickup_branch": "PLACEHOLDER DFW Airport rental car center",
       "dropoff_branch": "PLACEHOLDER DFW Airport rental car center",
       "pickup_time": "2026-11-25T18:00:00-06:00",
@@ -216,7 +213,7 @@
     },
     {
       "option_id": "opt_g",
-      "brand": "PLACEHOLDER Rental Co E",
+      "brand": "Enterprise",
       "pickup_branch": "PLACEHOLDER Arlington branch",
       "dropoff_branch": "PLACEHOLDER Arlington branch",
       "pickup_time": "2026-11-25T18:00:00-06:00",
@@ -263,21 +260,21 @@
     {
       "step_number": 2,
       "step_name": "Searched for cars",
-      "plain_language_finding": "PLACEHOLDER Asked OctoTrip for cars from 6 rental companies near DFW and Love Field.",
+      "plain_language_finding": "PLACEHOLDER Asked OctoTrip for cars from Enterprise, Hertz, and Avis near DFW and Love Field.",
       "timestamp": "2026-11-20T13:40:02-08:00",
       "step_type": "search"
     },
     {
       "step_number": 3,
       "step_name": "Checked who answered",
-      "plain_language_finding": "PLACEHOLDER 5 of 6 rental companies answered. Rental Co F didn't respond in time, so I couldn't check it. That doesn't mean it has no cars.",
+      "plain_language_finding": "PLACEHOLDER All 3 rental companies answered. One Avis location didn't respond in time.",
       "timestamp": "2026-11-20T13:40:15-08:00",
       "step_type": "coverage"
     },
     {
       "step_number": 4,
       "step_name": "Filled in missing prices",
-      "plain_language_finding": "PLACEHOLDER OctoTrip didn't return fees for Rental Co C and Rental Co D, so I used their prices saved at 1:15 PM.",
+      "plain_language_finding": "PLACEHOLDER OctoTrip didn't return fees for two Avis options, so I used their prices saved at 1:15 PM.",
       "timestamp": "2026-11-20T13:40:20-08:00",
       "step_type": "source_fallback"
     },
@@ -326,7 +323,7 @@
   ],
   "confirmation": {
     "confirmation_summary": {
-      "what": "PLACEHOLDER Midsize SUV (5 seats) from Rental Co A",
+      "what": "PLACEHOLDER Midsize SUV (5 seats) from Enterprise",
       "where": "PLACEHOLDER Pick up and return at the Love Field neighborhood branch",
       "dates": "PLACEHOLDER Wed, Nov 25, 6:00 PM to Sun, Nov 29, 12:00 PM (4 days)",
       "total": 41320,

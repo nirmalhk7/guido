@@ -9,6 +9,7 @@ test("Guido recalls a SingleStore trip linked from older Cognee history for the 
   const inbox = "guido@agentmail.to";
   const tenant = "00000000-0000-4000-8000-000000000001";
   const secret = "a".repeat(64);
+  const guideId = "6c1f2a9e-3b4d-4e8f-9a7b-1c2d3e4f5a6b";
   const aliceSession = "guido-email-" + createHmac("sha256", secret)
     .update(JSON.stringify([inbox, "alice@example.com"])).digest("hex");
   const trip = {
@@ -30,6 +31,8 @@ test("Guido recalls a SingleStore trip linked from older Cognee history for the 
     SUPERLINKED_API_KEY: "sie-test",
     STATSIG_SDK_KEY: "statsig-test",
     GUILD_API_KEY: "guild-test",
+    SENSO_API_KEY: "senso-test",
+    SENSO_CONTENT_IDS: guideId,
     SINGLESTORE_HOST: "test.invalid",
     SINGLESTORE_USER: "test",
     SINGLESTORE_PASSWORD: "test",
@@ -67,6 +70,7 @@ test("Guido recalls a SingleStore trip linked from older Cognee history for the 
   const histories = new Map();
   const responses = new Map();
   const prompts = [];
+  const guidanceQueries = [];
   let failCogneeWrite = false;
   t.mock.method(globalThis, "fetch", async (input, init) => {
     const request = new Request(input, init);
@@ -90,13 +94,19 @@ test("Guido recalls a SingleStore trip linked from older Cognee history for the 
       });
     }
     if (url.hostname === "api.superlinked.com") {
-      return Response.json({ answers: [
-        { type: "predicate", name: "rental_needed", probability: 0.9 },
-        { type: "predicate", name: "road_trip_detected", probability: 0.9 },
-      ] });
+      return Response.json({ answers: {
+        rental_needed: { type: "choice", probabilities: { "rental car wanted": 0.9, "no rental request": 0.1 } },
+        road_trip_detected: { type: "noul", noul: 0.9 },
+      } });
     }
     if (url.hostname === "api.statsig.com") {
       return Response.json({ name: "BROWSERBASE_ENABLED", value: true });
+    }
+    if (url.hostname === "apiv2.senso.ai") {
+      guidanceQueries.push((await request.json()).query);
+      return Response.json({ results: [
+        { content_id: guideId, title: "Pickup guide", chunk_text: "Check counter hours before pickup." },
+      ] });
     }
     if (url.hostname === `tenant-${tenant}.aws.cognee.ai`) {
       if (request.method === "GET") {
@@ -141,8 +151,13 @@ test("Guido recalls a SingleStore trip linked from older Cognee history for the 
   }));
 
   assert.equal((await deliver("plan")).status, 204);
+  assert.deepEqual(guidanceQueries, ["Rental car guidance for a road trip, including mileage limits, cross-border rules, and roadside assistance."]);
+  assert.deepEqual(prompts[0].senso_context, [{
+    content_id: guideId, title: "Pickup guide", text: "Check counter hours before pickup.",
+  }]);
   assert.equal(trips.size, 1, "planned rental should be persisted in SingleStore");
   const original = histories.get(aliceSession)[0];
+  assert.ok(!Object.hasOwn(JSON.parse(original.question), "senso_context"));
   const otherExchanges = Array.from({ length: 5 }, (_, index) => ({
     question: "Unrelated question",
     answer: "Unrelated answer",

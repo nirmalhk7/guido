@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getAgentMail, sendAgentMail, type MessagePage } from "./agentmail.ts";
 import { observeAgentRun } from "./amplitude.ts";
 import { guildDraft } from "./guido-email.ts";
-import { decideRental } from "./rental-decision.ts";
+import { decideTravel } from "./rental-decision.ts";
 import { queryTimeout, withSingleStore } from "./singlestore.ts";
 
 const historyId = z.string().regex(/^\d+$/);
@@ -164,7 +164,8 @@ export async function scanGmailTrips() {
         sent_at: new Date(Number(messages[index].internalDate)).toISOString(),
         source: "gmail" as const,
       };
-      const route = await decideRental(email, trace);
+      const travel = await decideTravel(email, trace);
+      const { route } = travel;
       if (route === "skip") {
         trace.finish("skipped");
         return;
@@ -174,7 +175,7 @@ export async function scanGmailTrips() {
       const sent = await trace.span("agentmail.delivery_lookup", () =>
         getAgentMail<MessagePage>({ query: new URLSearchParams({ labels: label, limit: "1" }) }));
       if (sent.messages.length) return;
-      const { draft } = await guildDraft({ ...email, rental_provider: route }, [], [], trace);
+      const { draft } = await guildDraft({ ...email, rental_provider: route }, [], [], trace, travel);
       await trace.span("agentmail.send", async () => {
         const delivery = await sendAgentMail(address, "Guido rental-car options", draft, label);
         if (!delivery.message_id) throw new Error("AgentMail did not confirm delivery.");

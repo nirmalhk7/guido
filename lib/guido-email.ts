@@ -3,8 +3,9 @@ import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { getAgentMail, type Message } from "./agentmail.ts";
 import { observeGuildRun, type AgentTrace } from "./amplitude.ts";
-import { decideRental, type RentalRoute } from "./rental-decision.ts";
+import { decideTravel, type RentalRoute } from "./rental-decision.ts";
 import { loadRentalTrips, rentalTrip, saveRentalTrip } from "./rental-trips.ts";
+import { rentalGuidance } from "./senso.ts";
 
 const guildHost = "https://api.guild.ai/v1";
 const workspace = "nirmalhk7~tokensandhackathon";
@@ -63,8 +64,10 @@ export async function guildDraft(
   priorExchanges: { message: string; draft: string }[],
   priorRentalTrips: Awaited<ReturnType<typeof loadRentalTrips>> = [],
   trace?: AgentTrace,
+  travel?: { roadTrip: boolean },
 ) {
   const headers = { Authorization: `Bearer ${setting("GUILD_API_KEY")}`, "Content-Type": "application/json" };
+  const sensoContext = email.rental_provider ? await rentalGuidance(travel?.roadTrip ?? false, trace) : undefined;
   const signal = AbortSignal.timeout(300_000);
   async function guild<T>(path: string, body?: object): Promise<T> {
     const response = await fetch(guildHost + path, {
@@ -87,6 +90,7 @@ export async function guildDraft(
         rental_trace_id: trace?.id,
         prior_exchanges: priorExchanges,
         prior_rental_trips: priorRentalTrips,
+        senso_context: sensoContext,
       }),
     });
     if (typeof id !== "string" || !id) throw new Error("Guild did not return a session ID.");
@@ -154,18 +158,18 @@ async function draftFromInbox(inbox: string, messageId: string, delivery?: Webho
   };
   if (!email.message) throw new Error("The incoming email has no plain-text body.");
 
-  if (trace) {
-    const route = await decideRental(email, trace);
-    if (route === "skip") {
-      trace.finish("skipped");
+  const travel = trace ? await decideTravel(email, trace) : undefined;
+  if (travel) {
+    if (travel.route === "skip") {
+      trace?.finish("skipped");
       return { draft: "", memory: "skipped" };
     }
-    email.rental_provider = route;
+    email.rental_provider = travel.route;
   }
 
   const sender = delivery?.unauthenticated ? undefined : verifiedSender(message);
   if (!sender) {
-    const { draft } = await guildDraft(email, [], [], trace);
+    const { draft } = await guildDraft(email, [], [], trace, travel);
     return { draft, memory: "skipped" };
   }
 
@@ -201,7 +205,7 @@ async function draftFromInbox(inbox: string, messageId: string, delivery?: Webho
   }
   const recallTrips = () => loadRentalTrips(senderScope, [...tripIds]);
   const priorTrips = trace && tripIds.size ? await trace.span("singlestore.trip_recall", recallTrips) : await recallTrips();
-  const { draft, trip } = await guildDraft(email, historyInput(qas), priorTrips, trace);
+  const { draft, trip } = await guildDraft(email, historyInput(qas), priorTrips, trace, travel);
   let context = messageKey;
   if (trip) {
     const saveTrip = () => saveRentalTrip(senderScope, trip);

@@ -90,7 +90,7 @@ function Page({ input }: { input: PageInput }) {
   };
 
   const env = result.data_source.environment;
-  const envBanner = env !== "live" && kind !== "unreachable" ? (copy.environment_banners as Record<string, string>)[env] : undefined;
+  const envBanner = (env === "sandbox" || env === "unavailable") && kind !== "unreachable" ? copy.environment_banners[env] : undefined;
   const anyStale = ranked.some((o) => o.status !== "not_a_fit" && isStale(o.source.captured_at, now));
 
   return (
@@ -111,7 +111,7 @@ function Page({ input }: { input: PageInput }) {
             )}
           </Banner>
         )}
-        {envBanner && !loading && <Banner tone={env === "fixture" ? "sample" : "warning"}>{envBanner}</Banner>}
+        {envBanner && !loading && <Banner tone="warning">{envBanner}</Banner>}
         {anyStale && !loading && <Banner tone="warning">{copy.freshness.stale_banner}</Banner>}
       </div>
 

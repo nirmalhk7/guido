@@ -56,7 +56,7 @@ const syntheticRates = z.object({
 const catalogRegions = ["bay-area", "denver"] as const;
 const catalogPage = z.object({
   simulated: z.literal(true), currency: z.literal("USD"),
-  vendor: z.enum(vendors ? ["Hertz", "Enterprise", "Avis"] : []), region: z.enum(catalogRegions),
+  vendor: z.enum(["Hertz", "Enterprise", "Avis"]), region: z.enum(catalogRegions),
   locations: z.array(z.object({ name: z.string().min(1), dailyCents: locationRateCard })),
 });
 
@@ -66,7 +66,6 @@ function normalizeLocation(name: string) {
 
 const pickupAliases = new Map([
   ["sfo", "san francisco international airport"], ["den", "denver international airport"],
-  ["oak", "oakland international airport"], ["sjc", "san jose mineta international airport"],
 ]);
 
 function firedrillRoute(catalogConnection?: string) {
@@ -107,13 +106,13 @@ async function fetchFiredrillPage(route: ReturnType<typeof firedrillRoute>, url:
 export async function readFiredrillRates(pickupLocation?: string): Promise<Rates> {
   const catalogConnection = process.env.FIREDRILL_RENTAL_CATALOG_CONNECTION;
   const route = firedrillRoute(catalogConnection);
+  const name = normalizeLocation(pickupLocation ?? "");
+  const pickup = pickupAliases.get(name) ?? name;
   const entries = await Promise.all(Object.entries(vendors).map(async ([vendor, host]) => {
     if (!catalogConnection) {
       const page = await fetchFiredrillPage(route, `https://${host}/rental-rates`);
       return [[vendor, syntheticRates.parse(page).dailyCents] as const];
     }
-    const name = normalizeLocation(pickupLocation ?? "");
-    const pickup = pickupAliases.get(name) ?? name;
     const pages = await Promise.all(catalogRegions.map(async (region) => {
       const page = catalogPage.parse(await fetchFiredrillPage(route, `https://${host}/rental-locations/${region}`, true));
       if (page.vendor !== vendor || page.region !== region) throw new Error("Firedrill catalog page does not match its vendor or region.");

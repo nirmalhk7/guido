@@ -50,7 +50,7 @@
   },
 
   "environment_banners": {
-    "_note": "Shown at the top of the page based on data_source.environment. live has no banner.",
+    "_note": "Source notices by data_source.environment. The page shows sandbox and unavailable notices. Email previews also use the fixture notice.",
     "sandbox": "These prices come from a test system. They're realistic but can't be booked.",
     "fixture": "These are made-up sample prices for this demo. They are not real quotes.",
     "unavailable": "I couldn't reach any rental companies just now. That doesn't mean there are no cars. Try again in a few minutes."
@@ -291,7 +291,7 @@
 
   "couldnt_check_group": {
     "heading": "Couldn't fully check",
-    "intro": "These companies didn't give me complete prices, so they aren't compared above.",
+    "intro": "I couldn't get complete prices for every option from these companies.",
     "still_checking": "Still checking…"
   },
 
