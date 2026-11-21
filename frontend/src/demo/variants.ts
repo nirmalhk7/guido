@@ -77,6 +77,7 @@ export interface PageInput {
 }
 
 const AFTER_RESULTS = new Set(["ranking", "confirmation", "approval", "handoff"]);
+const SLOW_PROVIDER = "Avis";
 
 function withoutWinner(r: TripResult, keepSteps: (t: string | undefined) => boolean): TripResult {
   r.winner_summary = null;
@@ -94,7 +95,7 @@ export function demoInput(key: DemoStateKey, now = Date.now()): PageInput {
     case "loading":
       return { result: awaitingApproval(base), loading: true };
     case "slow":
-      return { result: awaitingApproval(base), pending: ["PLACEHOLDER Rental Co F"], pendingForMs: 8000 };
+      return { result: awaitingApproval(base), pending: [SLOW_PROVIDER], pendingForMs: 8000 };
     case "stale":
       return { result: awaitingApproval(rebaseTimes(sampleResult, 180, now)) };
     case "outdated":
@@ -121,11 +122,13 @@ export function demoInput(key: DemoStateKey, now = Date.now()): PageInput {
       const r = clone(base);
       r.options = [];
       r.coverage.providers = r.coverage.providers.map((p) =>
-        p.result === "unavailable" ? p : { ...p, result: "no_cars", reason: null, options_returned: 0 },
+        p.provider === SLOW_PROVIDER
+          ? { ...p, result: "unavailable", reason: "timed_out", source: null, options_returned: 0 }
+          : { ...p, result: "no_cars", reason: null, options_returned: 0 },
       );
       r.data_source.captured_at = null;
       const step = r.audit_trail.find((s) => s.step_type === "coverage");
-      if (step) step.plain_language_finding = "PLACEHOLDER 5 of 6 rental companies answered, but none have cars for your dates. Rental Co F didn't respond in time.";
+      if (step) step.plain_language_finding = `PLACEHOLDER 2 of 3 rental companies answered, but none have cars for your dates. ${SLOW_PROVIDER} didn't respond in time.`;
       return { result: withoutWinner(r, (t) => t === "request" || t === "search" || t === "coverage") };
     }
     case "unreachable": {
@@ -143,7 +146,7 @@ export function demoInput(key: DemoStateKey, now = Date.now()): PageInput {
       );
       r.data_source = { data_source: "octotrip_mcp", captured_at: null, environment: "unavailable" };
       const step = r.audit_trail.find((s) => s.step_type === "coverage");
-      if (step) step.plain_language_finding = "PLACEHOLDER None of the 6 rental companies answered in time. OctoTrip timed out, and I had no saved prices for this trip.";
+      if (step) step.plain_language_finding = "PLACEHOLDER None of the 3 rental companies answered in time. OctoTrip timed out, and I had no saved prices for this trip.";
       return { result: withoutWinner(r, (t) => t === "request" || t === "search" || t === "coverage") };
     }
     default:

@@ -116,7 +116,7 @@ async function browserbase(url: string, body?: RentalSearch) {
 
 async function firedrillQuote(requirements: z.infer<typeof rentalRequirements>) {
   try {
-    const quote = syntheticQuotes(requirements, await readFiredrillRates());
+    const quote = syntheticQuotes(requirements, await readFiredrillRates(requirements.pickupLocation));
     if (quote) return result({ status: "SIMULATED", source: "Firedrill", ...quote });
   } catch {
     // Missing, expired, and malformed simulator responses must never reach live browsing.

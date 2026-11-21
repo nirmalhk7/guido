@@ -22,7 +22,9 @@ const storedMessage = {
   labels: ["received"],
 };
 
-async function setup(t, guildStatus = 201, message = storedMessage, amplitudeStatus, probability = 0.8, gate = true) {
+const approvedGuide = "6c1f2a9e-3b4d-4e8f-9a7b-1c2d3e4f5a6b";
+
+async function setup(t, guildStatus = 201, message = storedMessage, amplitudeStatus, probability = 0.8, gate = true, roadTrip = 0.9, senso) {
   assert.ok(existsSync(route), "AgentMail needs an inbound webhook route");
   const { POST } = await import(route);
   for (const [key, value] of Object.entries({
@@ -32,6 +34,8 @@ async function setup(t, guildStatus = 201, message = storedMessage, amplitudeSta
     GUILD_TRIGGER_KEY: "trigger-id:trigger-secret",
     SUPERLINKED_API_KEY: "sie-test",
     STATSIG_SDK_KEY: "statsig-test",
+    SENSO_API_KEY: senso ? "senso-test" : "",
+    SENSO_CONTENT_IDS: senso?.contentIds ?? "",
     AMPLITUDE_API_KEY: amplitudeStatus === undefined ? "" : "amplitude-test",
   })) {
     const previous = process.env[key];
@@ -49,11 +53,17 @@ async function setup(t, guildStatus = 201, message = storedMessage, amplitudeSta
     if (request.url === "https://api2.amplitude.com/2/httpapi") {
       return Response.json({}, { status: amplitudeStatus });
     }
-    if (request.url === "https://api.superlinked.com/v1/decisions") {
-      return Response.json({ answers: [{ type: "predicate", name: "rental_needed", probability }] });
+    if (request.url === "https://api.superlinked.com/v1/systemone") {
+      return Response.json({ answers: {
+        rental_needed: { type: "choice", probabilities: { "rental car wanted": probability, "no rental request": 1 - probability } },
+        road_trip_detected: { type: "noul", noul: roadTrip },
+      } });
     }
     if (request.url === "https://api.statsig.com/v1/check_gate") {
       return Response.json({ name: "BROWSERBASE_ENABLED", value: gate });
+    }
+    if (request.url === "https://apiv2.senso.ai/api/v1/org/search/context") {
+      return senso.respond();
     }
     return Response.json({ id: "guild-session" }, { status: guildStatus });
   });
@@ -64,6 +74,69 @@ async function setup(t, guildStatus = 201, message = storedMessage, amplitudeSta
   }));
   return { deliver, requests };
 }
+
+test("AgentMail passes only approved Senso passages to Guild and keeps email data out of Senso", async (t) => {
+  const { deliver, requests } = await setup(t, 201, storedMessage, 200, 0.8, true, 0.5, {
+    contentIds: approvedGuide,
+    respond: () => Response.json({ results: [
+      { content_id: approvedGuide, title: "Airport pickup", chunk_text: "Check shuttle hours before pickup." },
+      { content_id: "49b87f14-be69-4f7a-aa8f-6a2d9e882427", title: "Private notes", chunk_text: "Private notes" },
+    ] }),
+  });
+  assert.equal((await deliver()).status, 204);
+  const search = requests.find(({ url }) => url === "https://apiv2.senso.ai/api/v1/org/search/context");
+  assert.ok(search, "qualified trip should retrieve guidance from Senso");
+  assert.equal(search.method, "POST");
+  assert.equal(search.redirect, "error");
+  assert.equal(search.headers.get("X-API-Key"), "senso-test");
+  const payload = await search.json();
+  assert.deepEqual(payload, {
+    query: "Travel guidance for planning a rental car trip: pickup and return, driver requirements, fees, and road trip preparation.",
+    max_results: 3,
+    content_ids: [approvedGuide],
+    require_scoped_ids: true,
+  });
+  const { agent_input } = await requests.find(({ url }) => url.includes("api.guild.ai")).json();
+  assert.deepEqual(JSON.parse(agent_input.text).senso_context, [{
+    content_id: approvedGuide, title: "Airport pickup", text: "Check shuttle hours before pickup.",
+  }]);
+  const telemetry = await requests.find(({ url }) => url.includes("api2.amplitude.com")).json();
+  assert.doesNotMatch(JSON.stringify(telemetry), /shuttle|Airport pickup|senso-test/);
+});
+
+test("AgentMail trigger retrieves road trip guidance for a detected road trip", async (t) => {
+  const { deliver, requests } = await setup(t, 201, storedMessage, undefined, 0.8, true, 0.9, {
+    contentIds: approvedGuide,
+    respond: () => Response.json({ results: [] }),
+  });
+  assert.equal((await deliver()).status, 204);
+  const search = requests.find(({ url }) => url.includes("apiv2.senso.ai"));
+  assert.equal((await search.json()).query, "Rental car guidance for a road trip, including mileage limits, cross-border rules, and roadside assistance.");
+});
+
+for (const [reason, respond] of [
+  ["a network error", () => { throw new Error("Connection closed"); }],
+  ["provider failure", () => Response.json({}, { status: 503 })],
+  ["malformed results", () => Response.json({ results: "invalid" })],
+  ["no matches", () => Response.json({ results: [] })],
+]) {
+  test(`AgentMail still starts Guild without Senso context after ${reason}`, async (t) => {
+    const { deliver, requests } = await setup(t, 201, storedMessage, undefined, 0.8, true, 0.9, {
+      contentIds: approvedGuide, respond,
+    });
+    assert.equal((await deliver()).status, 204);
+    assert.ok(requests.some(({ url }) => url.includes("apiv2.senso.ai")), "search must be attempted");
+    const { agent_input } = await requests.find(({ url }) => url.includes("api.guild.ai")).json();
+    assert.ok(!Object.hasOwn(JSON.parse(agent_input.text), "senso_context"));
+  });
+}
+
+test("AgentMail never searches Senso without approved document IDs", async (t) => {
+  const { deliver, requests } = await setup(t, 201, storedMessage, undefined, 0.8, true, 0.9, { contentIds: " , " });
+  assert.equal((await deliver()).status, 204);
+  assert.ok(requests.some(({ url }) => url.includes("api.guild.ai")));
+  assert.ok(!requests.some(({ url }) => url.includes("apiv2.senso.ai")));
+});
 
 test("an inbound webhook fetches the full email and starts Guido on Guild", async (t) => {
   const { deliver, requests } = await setup(t);
@@ -108,7 +181,14 @@ test("a Guild API trigger reports session acceptance without email data", async 
   assert.ok(upload, "the relay must report the Guild session to Amplitude");
   const { api_key, events } = await upload.json();
   assert.equal(api_key, "amplitude-test");
-  assert.equal(events.length, 4);
+  const names = events.map(({ event_properties }) => event_properties["[Agent] Span Name"]);
+  assert.ok(names.includes("email.received"));
+  assert.ok(names.includes("road_trip.detected"));
+  const guildRequest = requests.find(({ url }) => url.includes("api.guild.ai"));
+  const { agent_input } = await guildRequest.json();
+  const { rental_trace_id } = JSON.parse(agent_input.text);
+  assert.match(rental_trace_id, /^[0-9a-f-]{36}$/);
+  assert.deepEqual([...new Set(events.map(({ event_properties }) => event_properties["[Agent] Session ID"]))], [rental_trace_id]);
   const span = events.find(({ event_properties }) => event_properties["[Agent] Span Name"] === "guild.session.start");
   assert.equal(span.event_type, "[Agent] Span");
   assert.equal(span.event_properties["[Agent] Agent ID"], "guido");
@@ -144,6 +224,19 @@ test("a below-threshold incoming message is acknowledged without starting Guido"
   assert.deepEqual(requests.map((request) => new URL(request.url).hostname), [
     "api.agentmail.to", "api.superlinked.com", "api2.amplitude.com",
   ]);
+  const { events } = await requests.at(-1).json();
+  const names = events.map(({ event_properties }) => event_properties["[Agent] Span Name"]);
+  assert.ok(names.includes("email.received"));
+  assert.ok(names.includes("road_trip.detected"), "a road trip may use the traveler's own vehicle");
+});
+
+test("an ordinary incoming email records arrival without reporting a road trip", async (t) => {
+  const { deliver, requests } = await setup(t, 201, storedMessage, 200, 0.2, true, 0.2);
+  assert.equal((await deliver()).status, 204);
+  const { events } = await requests.at(-1).json();
+  const names = events.map(({ event_properties }) => event_properties["[Agent] Span Name"]);
+  assert.equal(names.filter((name) => name === "email.received").length, 1);
+  assert.ok(!names.includes("road_trip.detected"));
 });
 
 test("AgentMail gives Guild the provider selected after Superlinked's decision", async (t) => {

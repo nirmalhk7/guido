@@ -72,11 +72,13 @@ async function uploadEvents(apiKey: string, events: object[]) {
 }
 
 type ReportSpan = (state: string, rentalProbability?: number) => void;
+type Milestone = "email.received" | "road_trip.detected";
 
 export type AgentTrace = {
   id?: string;
   identifyGuild(sessionId: string): void;
   finish(state: "accepted" | "skipped"): void;
+  mark(name: Milestone): void;
   span<T>(name: string, work: (report: ReportSpan) => Promise<T>): Promise<T>;
 };
 
@@ -86,7 +88,7 @@ export async function observeAgentRun<T>(
   continuationId?: string,
 ): Promise<T> {
   const apiKey = process.env.AMPLITUDE_API_KEY?.trim();
-  if (!apiKey) return run({ identifyGuild: () => {}, finish: () => {}, span: (_name, work) => work(() => {}) });
+  if (!apiKey) return run({ identifyGuild: () => {}, finish: () => {}, mark: () => {}, span: (_name, work) => work(() => {}) });
 
   const batchId = randomUUID();
   const id = continuationId ?? batchId;
@@ -112,6 +114,7 @@ export async function observeAgentRun<T>(
     id,
     identifyGuild: (sessionId) => { guildSessionId = sessionId; },
     finish: (state) => { outcome = state; },
+    mark: (name) => track("[Agent] Span", { "[Agent] Span Name": name, "[Agent] Latency Ms": 0 }),
     async span(name, work) {
       const started = performance.now();
       let state = "completed";

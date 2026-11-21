@@ -4,6 +4,7 @@ import test from "node:test";
 import singlestore from "singlestore-nodejs/promise";
 
 const route = new URL("../api/gmail.ts", import.meta.url);
+const guideId = "6c1f2a9e-3b4d-4e8f-9a7b-1c2d3e4f5a6b";
 
 async function setup(t, probability, loseSendAcknowledgement = false) {
   const original = process.env;
@@ -12,6 +13,7 @@ async function setup(t, probability, loseSendAcknowledgement = false) {
     GMAIL_CLIENT_SECRET: "google-secret", GMAIL_REFRESH_TOKEN: "refresh-token",
     GMAIL_ADDRESS: "owner@gmail.com", SUPERLINKED_API_KEY: "sie-test", STATSIG_SDK_KEY: "statsig-test",
     GUILD_API_KEY: "guild-test", AMPLITUDE_API_KEY: "amplitude-test",
+    SENSO_API_KEY: "senso-test", SENSO_CONTENT_IDS: guideId,
     AGENTMAIL_INBOX_ID: "guido@agentmail.to", AGENTMAIL_API_KEY: "agentmail-test",
     SINGLESTORE_HOST: "test.invalid", SINGLESTORE_USER: "test",
     SINGLESTORE_PASSWORD: "test", SINGLESTORE_DATABASE: "test", SINGLESTORE_CA_FILE: "",
@@ -55,24 +57,36 @@ async function setup(t, probability, loseSendAcknowledgement = false) {
       assert.match(starting, /^(100|102)$/);
       return Response.json(starting === "100" ? {
         historyId: "102",
-        history: [{ id: "101", messagesAdded: [{ message: { id: "m2", threadId: "t1" } }] }],
+        history: [{ id: "101", messagesAdded: [
+          { message: { id: "m1", threadId: "t1" } },
+          { message: { id: "m2", threadId: "t1" } },
+        ] }],
       } : { historyId: "102" });
     }
     if (url.pathname.endsWith("/threads/t1")) return Response.json({ id: "t1", messages: [
       gmail("m1", "We are flying to SFO December 8.", ["INBOX"]),
-      gmail("m2", "Then we need to drive to Yosemite and return December 11.", ["SENT"]),
+      gmail("m2", "Then we need to drive to Yosemite and return December 11.", ["INBOX"]),
     ] });
     if (url.hostname === "api.superlinked.com") {
-      const { input } = await request.json();
-      assert.match(input, /flying to SFO/);
-      assert.match(input, /drive to Yosemite/);
-      return Response.json({ answers: [{ type: "predicate", name: "rental_needed", probability }] });
+      const { state } = await request.json();
+      assert.match(state, /flying to SFO/);
+      assert.match(state, /drive to Yosemite/);
+      return Response.json({ answers: {
+        rental_needed: { type: "choice", probabilities: { "rental car wanted": probability, "no rental request": 1 - probability } },
+        road_trip_detected: { type: "noul", noul: 0.9 },
+      } });
     }
     if (url.hostname === "api.statsig.com") return Response.json({ name: "BROWSERBASE_ENABLED", value: true });
+    if (url.hostname === "apiv2.senso.ai") return Response.json({ results: [
+      { content_id: guideId, title: "Planning guide", chunk_text: "Check after-hours return procedures." },
+    ] });
     if (url.hostname === "api.guild.ai" && request.method === "POST") {
       const { initial_prompt } = await request.json();
       assert.equal(JSON.parse(initial_prompt).rental_provider, "browserbase");
       assert.equal(JSON.parse(initial_prompt).source, "gmail");
+      assert.deepEqual(JSON.parse(initial_prompt).senso_context, [{
+        content_id: guideId, title: "Planning guide", text: "Check after-hours return procedures.",
+      }]);
       return Response.json({ id: "guild-1" });
     }
     if (url.hostname === "api.guild.ai") return Response.json({
@@ -120,12 +134,19 @@ test("Gmail classifies new conversations, runs qualifying searches in Guild and 
   assert.equal((await scan()).status, 204);
   const send = calls.filter(({ url }) => url.endsWith("/messages/send"));
   assert.equal(send.length, 1);
+  const searches = calls.filter(({ url }) => url.includes("apiv2.senso.ai"));
+  assert.equal(searches.length, 1);
+  assert.equal((await searches[0].json()).query, "Rental car guidance for a road trip, including mileage limits, cross-border rules, and roadside assistance.");
   const telemetry = calls.find(({ url }) => url === "https://api2.amplitude.com/2/httpapi");
   const { events } = await telemetry.json();
   const spans = events.map(({ event_properties }) => event_properties["[Agent] Span Name"]);
-  for (const span of ["gmail.thread_read", "superlinked.rental_decision", "statsig.rental_gate", "guild.draft", "agentmail.send"]) {
+  for (const span of ["email.received", "road_trip.detected", "gmail.thread_read", "superlinked.rental_decision", "statsig.rental_gate", "guild.draft", "agentmail.send"]) {
     assert.ok(spans.includes(span), `missing span: ${span}`);
   }
+  assert.equal(spans.filter((span) => span === "email.received").length, 2);
+  assert.equal(spans.filter((span) => span === "road_trip.detected").length, 1);
+  assert.equal(new Set(events.map(({ event_properties }) => event_properties["[Agent] Session ID"])).size, 1);
+  assert.ok(events.every(({ event_properties }) => event_properties["[Agent] Guild Session ID"] === "guild-1"));
   assert.doesNotMatch(JSON.stringify(events), /owner@gmail.com|Yosemite|lowest verified total/);
 });
 
@@ -135,7 +156,7 @@ test("Gmail scores at 50% never reach Statsig, Guild, or AgentMail", async (t) =
   assert.equal((await scan()).status, 204);
   const hosts = calls.map(({ url }) => new URL(url).hostname);
   assert.ok(hosts.includes("api.superlinked.com"));
-  assert.ok(!hosts.some((host) => /statsig|guild\.ai|agentmail\.to/.test(host)));
+  assert.ok(!hosts.some((host) => /statsig|guild\.ai|agentmail\.to|senso\.ai/.test(host)));
 });
 
 test("a lost AgentMail acknowledgement leaves Gmail retryable and reuses the sent result", async (t) => {

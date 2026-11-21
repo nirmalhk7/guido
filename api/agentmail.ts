@@ -2,7 +2,8 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { getAgentMail, type Message } from "../lib/agentmail.ts";
 import { observeAgentRun } from "../lib/amplitude.ts";
 import { draftGuidoEmail } from "../lib/guido-email.ts";
-import { decideRental } from "../lib/rental-decision.ts";
+import { decideTravel } from "../lib/rental-decision.ts";
+import { rentalGuidance } from "../lib/senso.ts";
 
 const guildSessions = "https://api.guild.ai/v1/workspaces/nirmalhk7/tokensandhackathon/sessions";
 const digest = (value: string) => createHash("sha256").update(value).digest();
@@ -46,6 +47,7 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     return await observeAgentRun("agentmail", async (trace) => {
+      trace.mark("email.received");
       if (useMemory) {
         await draftGuidoEmail(messageId, {
           eventId,
@@ -66,12 +68,13 @@ export async function POST(request: Request): Promise<Response> {
         sent_at: mail.timestamp,
         agentmail_event_id: eventId,
       };
-      const route = await decideRental(email, trace);
+      const { route, roadTrip } = await decideTravel(email, trace);
       if (route === "skip") {
         trace.finish("skipped");
         return new Response(null, { status: 204 });
       }
 
+      const sensoContext = await rentalGuidance(roadTrip, trace);
       await trace.span("guild.session.start", async (report) => {
         const response = await fetch(guildSessions, {
           method: "POST",
@@ -79,7 +82,12 @@ export async function POST(request: Request): Promise<Response> {
             Authorization: `Basic ${Buffer.from(guildKey).toString("base64")}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ session_type: "api_trigger", agent_input: { text: JSON.stringify({ ...email, rental_provider: route, rental_trace_id: trace.id }) } }),
+          body: JSON.stringify({
+            session_type: "api_trigger",
+            agent_input: { text: JSON.stringify({
+              ...email, rental_provider: route, rental_trace_id: trace.id, senso_context: sensoContext,
+            }) },
+          }),
           redirect: "error",
           signal: AbortSignal.timeout(12_000),
         });

@@ -162,6 +162,65 @@ test("a local Firedrill session uses its loopback invoke contract without cloud 
   assert.deepEqual(calls.sort(), ["Avis", "Enterprise", "Hertz"]);
 });
 
+test("Guild receives live Firedrill catalog rates for the requested pickup branch", async (t) => {
+  const { POST } = await setup(t, gateValue(false));
+  const operations = "https://catalog.example.invalid/session/operations";
+  const key = "FIREDRILL_RENTAL_CATALOG_CONNECTION";
+  const previous = process.env[key];
+  process.env[key] = JSON.stringify({
+    expires_at: new Date(Date.now() + 60_000).toISOString(),
+    http: { operations_url: operations, headers: { Authorization: "Bearer scoped-catalog-token" } },
+  });
+  t.after(() => {
+    if (previous === undefined) delete process.env[key];
+    else process.env[key] = previous;
+  });
+  const vendorRates = {
+    "hertz.invalid": ["Hertz", 6800, 7135],
+    "enterprise.invalid": ["Enterprise", 7477, 6473],
+    "avis.invalid": ["Avis", 7354, 6350],
+  };
+  let reads = 0;
+  t.mock.method(globalThis, "fetch", async (input, options) => {
+    const req = new Request(input, options);
+    if (req.url === "https://api.statsig.com/v1/check_gate") return gateValue(false)();
+    assert.equal(req.url, operations + "/web/fetch");
+    assert.equal(req.headers.get("authorization"), "Bearer scoped-catalog-token");
+    const { arguments: args } = await req.json();
+    const url = new URL(args.url);
+    const [vendor, sfo, den] = vendorRates[url.hostname];
+    const region = url.pathname.split("/").at(-1);
+    assert.ok(["/rental-locations/bay-area", "/rental-locations/denver"].includes(url.pathname));
+    assert.ok(args.max_length >= 15000);
+    assert.equal(args.follow_redirects, false);
+    const [id, name, sedan] = region === "bay-area"
+      ? ["bay-area-001", "San Francisco International Airport", sfo]
+      : ["denver-001", "Denver International Airport", den];
+    reads++;
+    return Response.json({ status: 200, truncated: false, content: JSON.stringify({
+      simulated: true, currency: "USD", vendor, region,
+      locations: [{ id, name, dailyCents: { sedan, "premium sedan": 9000, SUV: 10000, "premium SUV": 11000 } }],
+    }) });
+  });
+  const quote = async (pickupLocation, vehicleClasses = ["sedan"]) => {
+    const response = await POST(start({ ...request, provider: "firedrill", rentalRequirements: {
+      ...requirements, pickupLocation, returnLocation: pickupLocation, vehicleClasses,
+      returnAt: "2026-11-27T12:00:00-08:00", maxTotalUsd: 145,
+    } }));
+    const result = await response.json();
+    assert.equal(result.status, "SIMULATED");
+    assert.equal(result.source, "Firedrill");
+    return result.quotes.map(({ vendor, totalCents }) => [vendor, totalCents]);
+  };
+  assert.deepEqual(await quote("SFO"), [["Hertz", 13600]]);
+  assert.deepEqual(await quote("Denver International Airport"), [
+    ["Hertz", 14270], ["Enterprise", 12946], ["Avis", 12700],
+  ]);
+  assert.deepEqual(await quote("SFO", ["pickup truck"]), []);
+  assert.deepEqual(await quote("Chicago O'Hare International Airport"), []);
+  assert.equal(reads, 24);
+});
+
 test("the simulator covers exactly the three vendors and five rental classes", async () => {
   const { rateCards } = await import("../firedrill/rental-pricing/rate-cards.mjs");
   const { syntheticQuotes } = await import("../lib/firedrill-rental.ts");
