@@ -1,11 +1,49 @@
 # Guido
 
-Guido reads incoming AgentMail messages and recent Gmail conversations, then
-uses [Superlinked Decisions](https://superlinked.com/docs/migrate/openai-decisions)
-to score whether the trip needs a rental car. Scores of 50% or less stop
-before Guild starts and produce no reply. Higher scores check the
-`BROWSERBASE_ENABLED` Statsig gate and start Guido in Guild using the selected
-rental provider.
+Guido is an email-based rental car shopping assistant. It detects trips that
+need a rental, compares options from Hertz, Avis, and Enterprise, and drafts a
+recommendation. Rental searches stop before booking.
+
+## How a request flows
+
+1. AgentMail delivers incoming inbox messages to a webhook. A scheduled Gmail
+   scan picks up new messages in the configured Gmail mailbox.
+2. Superlinked scores rental intent and detects road trips. A rental intent
+   score of 50% or less ends the workflow without a reply.
+3. Statsig selects the search provider. Guild drafts the recommendation using
+   live quotes from Browserbase or simulated prices from Firedrill. An
+   unavailable gate stops the search.
+4. For Gmail requests, Guido sends the finished result to the monitored
+   mailbox through AgentMail. AgentMail trigger-only runs leave the draft in
+   Guild session history.
+
+## Platforms and what Guido uses them for
+
+| Platform | Role in Guido |
+| --- | --- |
+| AgentMail | Provides Guido's inbox, triggers the inbound webhook, and delivers Gmail results from Guido's address. [Incoming mail](#incoming-mail) |
+| Gmail and Google OAuth | Give Guido read-only access to a configured mailbox. The scanner uses Gmail's history API to find new messages and fetch recent thread context. [Gmail monitoring](#gmail-monitoring) |
+| Superlinked Decisions | Classifies rental intent and detects road trips before the drafting agent starts. [Decision code](lib/rental-decision.ts) |
+| Statsig | Controls `BROWSERBASE_ENABLED`. The flag selects live or simulated search, and the rental gateway checks it again before serving results. [Rental providers](#rental-providers) |
+| Guild | Runs Guido's drafting agent and gives it a tool to call the rental gateway. [Agent prompt](guild/email/PROMPT.md) |
+| OpenAI | Provides the `gpt-5-mini` model that Guild uses to draft recommendations. [Agent configuration](guild/email/guild.yaml) |
+| Browserbase | Runs browser agents against Hertz, Avis, and Enterprise for live rental searches when the Statsig gate is on. [Rental providers](#rental-providers) |
+| Firedrill | Serves seeded rental rate cards and an optional branch catalog for simulated searches when the gate is off. [Rental providers](#rental-providers) |
+| Cognee Cloud | Stores prior email and draft exchanges for verified senders and keeps references to saved trips for follow-up requests. [Conversation memory](#draft-an-email-with-cognee-memory) |
+| SingleStore | Stores structured rental itineraries for trip recall and Gmail history checkpoints so each scan can resume where the previous one stopped. [Trip recall](#draft-an-email-with-cognee-memory) · [Gmail checkpoints](#gmail-monitoring) |
+| Senso | Retrieves up to three passages from approved rental guides to help Guild explain rental policies and road-trip considerations. [Travel guidance](#travel-guidance-from-senso) |
+| Amplitude | Traces workflow steps such as classification, provider selection, and draft delivery. Email contents and addresses stay out of the traces. [Agent Analytics](#amplitude-agent-analytics) |
+| Vercel | Hosts the Node.js webhook, Gmail scanner, and rental gateway. Vercel Cron calls the scanner every five minutes. A self-hosted Node.js deployment can run the same handlers. [Deployment](#deploy-guido) |
+
+## Preview the audit trail and results email
+
+The React and Vite audit-trail demo uses sample trip data to show the
+recommended car, price breakdown, alternatives, and how Guido ranked them.
+Tailwind CSS and Radix provide styling and UI controls. The Node.js email
+renderer builds HTML and plain-text previews from the same trip-result
+contract. Run `npm --prefix email run render:email` from the repository root
+and open `email/out/index.html`. See the [frontend setup](frontend/README.md)
+and [trip-result schema](contracts/trip_result.schema.json).
 
 ## Deploy Guido
 
