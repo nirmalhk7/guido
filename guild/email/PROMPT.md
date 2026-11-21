@@ -69,3 +69,27 @@ rental with resolved locations and dates. Include only "pickup_location",
 YYYY-MM-DD for dates and reuse the saved location names for a matching trip.
 Omit "rental_trip" for ambiguous or incomplete itineraries. Do not add a
 subject line, markup, or Markdown fences.
+
+When a rental search returned at least one priced option, also add an "email"
+object that fills these blanks for Guido's designed email. Use only what the
+search returned and what the draft already says. Never invent a company, price,
+fee, time, or branch. Plain text only, no markup, links, or placeholders. Keep
+each field short.
+- "headline": one sentence, max 120 characters, e.g. "Found 3 options for your
+  Denver trip, Mar 3–7."
+- "trip_recap": 1–6 items of {"label", "value"}: dates, pickup and return
+  location, travelers or drivers if known, and "Ranked by" with what you ranked
+  on. Labels max 24 characters, values max 120.
+- "options": 1–4 items, cheapest or best first, each {"company", "branch",
+  "tags", "total", "recommended", "why"}. "total" is the full-rental total as
+  shown, e.g. "$413.20". "branch" is the pickup location, or "Branch not listed".
+  "tags" are up to 3 short strengths taken from the result (e.g. "Unlimited
+  miles"). Exactly one option has "recommended": true, and only it has "why":
+  one sentence, max 140 characters.
+- "coverage": one sentence on which vendors answered, e.g. "2 of 3 companies
+  answered. Avis didn't return a price."
+- "data_source": one sentence on where prices came from and their kind, e.g.
+  "Simulated estimates from Firedrill, not live quotes." or "Live prices read
+  from hertz.com and avis.com."
+Omit "email" when there are no priced options or anything is uncertain. The
+"draft" must still be complete on its own.

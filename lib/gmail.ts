@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { ResultSetHeader, RowDataPacket } from "singlestore-nodejs/promise";
 import { z } from "zod";
-import { getAgentMail, sendAgentMail, type MessagePage } from "./agentmail.ts";
+import { getAgentMail, sendAgentMail, sendAgentMailHtml, type MessagePage } from "./agentmail.ts";
+import { buildHtmlEmail, htmlEmailEnabled } from "./html-email.ts";
 import { observeAgentRun } from "./amplitude.ts";
 import { guildDraft } from "./guido-email.ts";
 import { decideRental } from "./rental-decision.ts";
@@ -164,7 +165,17 @@ export async function scanGmailTrips() {
       const sent = await trace.span("agentmail.delivery_lookup", () =>
         getAgentMail<MessagePage>({ query: new URLSearchParams({ labels: label, limit: "1" }) }));
       if (sent.messages.length) return;
-      const { draft } = await guildDraft({ ...email, rental_provider: route }, [], [], trace);
+      const { draft, email: blanks } = await guildDraft({ ...email, rental_provider: route }, [], [], trace);
+      // Optional designed HTML version (off by default). Any problem → the plain-text send below.
+      if (htmlEmailEnabled()) {
+        const html = buildHtmlEmail(blanks, inbox);
+        if (html) {
+          const sentHtml = await trace.span("agentmail.send_html", async () =>
+            (await sendAgentMailHtml(address, "Guido rental-car options", draft, html, label)).message_id)
+            .catch(() => undefined);
+          if (sentHtml) return;
+        }
+      }
       await trace.span("agentmail.send", async () => {
         const delivery = await sendAgentMail(address, "Guido rental-car options", draft, label);
         if (!delivery.message_id) throw new Error("AgentMail did not confirm delivery.");

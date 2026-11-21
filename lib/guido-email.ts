@@ -100,16 +100,18 @@ export async function guildDraft(
         if (terminal.type !== "runtime_done" || !text) throw new Error("Guild did not produce an email draft.");
         let draft: string;
         let trip: unknown;
+        let emailBlanks: unknown;
         try {
           const output = JSON.parse(text);
           draft = output.draft?.trim() ?? "";
           trip = output.rental_trip;
+          emailBlanks = output.email;
         } catch (error) {
           if (!(error instanceof SyntaxError) || /^[{`]/.test(text)) throw error;
           draft = text;
         }
         if (!draft) throw new Error("Guild returned an empty email draft.");
-        return { draft, trip: rentalTrip.safeParse(trip).data };
+        return { draft, trip: rentalTrip.safeParse(trip).data, email: emailBlanks };
       }
       await delay(1_000, undefined, { signal });
     }

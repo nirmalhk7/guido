@@ -92,3 +92,30 @@ The render script fails (exit code 1) if any email contains "undefined", "null",
 
 Previews are built from `contracts/trip_result.sample.json` (all PLACEHOLDER /
 sample data) via `email/samples/variants.mjs`. Real results never go through that file.
+
+## Live HTML reply (branch `rashmi/html-email`, switch `HTML_EMAIL_ENABLED`, default off)
+
+Guild does the price search, so the backend doesn't rebuild numbers. Instead the
+Guild agent fills a short set of named blanks, and the backend drops them into
+the designed layout.
+
+- **Guild prompt** ([`guild/email/PROMPT.md`](../guild/email/PROMPT.md)): asks for
+  an extra `email` object next to `draft` (headline, trip_recap, options with
+  company / branch / tags / total / recommended / why, coverage, data_source),
+  only from what the search returned. **Republish this prompt in Guild.**
+- **`lib/html-email.ts`**: checks the blanks (required fields, length limits,
+  exactly one recommended, no `{{…}}` / `undefined` / `null`) and renders them
+  with `email/lib/html.mjs`, which escapes all text. Returns `null` on any problem.
+- **`lib/gmail.ts`**: when the switch is on and the HTML builds, sends HTML + the
+  agent's plain-text `draft` via `sendAgentMailHtml`. If the switch is off, the
+  HTML can't be built, or that send fails, it sends the **existing plain-text
+  reply unchanged**.
+- **Where it appears:** only the Gmail-scanner path sends email today. Incoming
+  AgentMail messages (`api/agentmail.ts`) still only create a Guild draft, so no
+  HTML there.
+- No "Review and book" button or "See all options" link yet: there's no hosted
+  web page URL. Optional `EMAIL_LOGO_URL` adds the logo image.
+
+**To test:** republish the prompt, set `HTML_EMAIL_ENABLED=true` on the
+deployment, send a trip email to the watched Gmail address, wait for the scan
+(5 min), and check the reply. Turn the switch off to go back instantly.

@@ -23,7 +23,7 @@ export interface Message extends MessageSummary {
 
 type MailRequest = { signal?: AbortSignal } & (
   | { messageId?: string; query?: URLSearchParams; reply?: never; send?: never }
-  | { messageId?: never; query?: never; reply?: never; send: { to: string[]; subject: string; text: string; labels: string[] } }
+  | { messageId?: never; query?: never; reply?: never; send: { to: string[]; subject: string; text: string; html?: string; labels: string[] } }
   | { messageId: string; query?: never; reply: { to: string; text: string; idempotencyKey: string }; send?: never }
 );
 
@@ -89,5 +89,12 @@ export function replyAgentMail(options: {
 export function sendAgentMail(to: string, subject: string, text: string, label: string) {
   return requestAgentMail<{ message_id: string; thread_id: string }>({
     send: { to: [to], subject, text, labels: [label] },
+  });
+}
+
+/** Same as sendAgentMail, plus an HTML body (used only when HTML_EMAIL_ENABLED is on). */
+export function sendAgentMailHtml(to: string, subject: string, text: string, html: string, label: string) {
+  return requestAgentMail<{ message_id: string; thread_id: string }>({
+    send: { to: [to], subject, text, html, labels: [label] },
   });
 }

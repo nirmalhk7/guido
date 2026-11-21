@@ -59,7 +59,7 @@ function optionCard(c, m) {
   const left = [
     pill(c.pill, c.recommended ? "primary" : "soft"),
     `<p style="margin:4px 0 0;font-family:${T.font};font-size:${c.recommended ? 20 : 18}px;line-height:1.3;font-weight:600;color:${T.text};">${esc(c.company)}</p>`,
-    `<p style="margin:2px 0 0;font-family:${T.font};font-size:15px;line-height:1.4;color:${T.muted};">${esc(c.car)}</p>`,
+    c.car ? `<p style="margin:2px 0 0;font-family:${T.font};font-size:15px;line-height:1.4;color:${T.muted};">${esc(c.car)}</p>` : "",
     `<p style="margin:6px 0 0;font-family:${T.font};font-size:15px;line-height:1.4;color:${T.text};">${esc(c.branchLine)}</p>`,
     c.why ? `<p style="margin:10px 0 0;font-family:${T.font};font-size:16px;line-height:1.45;color:${T.text};">${esc(c.why)}</p>` : "",
     c.tags.length || c.stale
@@ -81,9 +81,9 @@ function optionCard(c, m) {
       <td class="stack price-col" valign="top" align="right" width="150" style="width:150px;text-align:right;">${right}</td>
     </tr>
   </table>
-  <div style="margin-top:14px;padding-top:12px;border-top:1px solid ${T.border};">${facts}</div>
+  ${c.facts ? `<div style="margin-top:14px;padding-top:12px;border-top:1px solid ${T.border};">${facts}</div>` : ""}
   ${
-    c.recommended && c.hasPrice
+    c.recommended && c.hasPrice && m.links.confirm_url
       ? `${spacer(16)}${button(m.button.label, m.links.confirm_url)}
          <p style="margin:10px 0 0;font-family:${T.font};font-size:13px;line-height:1.45;color:${T.muted};">${esc(m.button.note)}</p>`
       : ""
@@ -160,7 +160,7 @@ export function renderHtml(m, { logoUrl = "", logoSize = 28 } = {}) {
     }
     sections.push(`<tr><td style="padding:18px 4px 0;">
       ${m.notAFitLine ? `<p style="margin:0 0 8px;font-family:${T.font};font-size:15px;line-height:1.45;color:${T.muted};">${esc(m.notAFitLine)}</p>` : ""}
-      <a href="${m.links.audit_url}" style="font-family:${T.font};font-size:16px;font-weight:600;color:${T.brand};text-decoration:none;">${esc(m.seeAll)} &rarr;</a>
+      ${m.seeAll && m.links.audit_url ? `<a href="${m.links.audit_url}" style="font-family:${T.font};font-size:16px;font-weight:600;color:${T.brand};text-decoration:none;">${esc(m.seeAll)} &rarr;</a>` : ""}
     </td></tr>`);
   } else {
     sections.push(`<tr><td style="padding:16px 0 0;">${emptyBlock(m)}</td></tr>`);
