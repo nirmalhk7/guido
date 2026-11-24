@@ -12,10 +12,15 @@ import { HowIDecided, buildSteps, type PriorityChange } from "@/components/HowID
 import { LoadingView } from "@/components/LoadingView";
 import { EmptyState } from "@/components/EmptyState";
 import { Confirmation, approvalSteps } from "@/components/Confirmation";
+import { RentalSearch } from "@/components/RentalSearch";
 import { DemoSwitcher } from "@/demo/DemoSwitcher";
 import { DEMO_STATES, demoInput, shiftKeepingOffset, type DemoStateKey, type PageInput } from "@/demo/variants";
 
 export default function App() {
+  return /^\/search\/?$/.test(window.location.pathname) ? <RentalSearch /> : <Demo />;
+}
+
+function Demo() {
   const params = new URLSearchParams(window.location.search);
   const isDemo = params.has("demo");
   const initial = (params.get("state") as DemoStateKey) ?? "results";
@@ -96,7 +101,10 @@ function Page({ input }: { input: PageInput }) {
   return (
     <div className="mx-auto max-w-[640px] space-y-6 px-4 pb-28 pt-6 sm:pt-10">
       <header className="space-y-5 px-1">
-        <Logo size="md" />
+        <div className="flex items-center justify-between gap-4">
+          <Logo size="md" />
+          <a className="text-[14px] text-primary hover:underline" href="/search">Search rentals</a>
+        </div>
         <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[34px]">{copy.page.title}</h1>
       </header>
 
