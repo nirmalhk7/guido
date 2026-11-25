@@ -55,6 +55,7 @@ export function playwrightTool(options: { catalogUrl: string; quoteUrl: string; 
       signal.throwIfAborted();
       let status = 0;
       let obstruction: string | undefined;
+      let stopSource = false;
       await page.route("**/*", async (route) => {
         const request = route.request();
         if (request.url() !== target.href || request.method() !== "GET" || !request.isNavigationRequest()
@@ -71,6 +72,7 @@ export function playwrightTool(options: { catalogUrl: string; quoteUrl: string; 
             const contentType = headers["content-type"]?.split(";")[0].trim().toLowerCase();
             if ([401, 403, 429, 451].includes(status) || headers["cf-mitigated"] === "challenge") {
               obstruction = "The supplier blocked automated access or requires sign-in.";
+              stopSource = [401, 403, 429, 451].includes(status) || headers["cf-mitigated"] === "challenge";
             } else if (status >= 300 && status < 400) {
               obstruction = "The supplier redirected the request.";
             } else if (status !== 200 || contentType !== "application/json" && contentType !== "text/html") {
@@ -100,11 +102,11 @@ export function playwrightTool(options: { catalogUrl: string; quoteUrl: string; 
         await route.fulfill({ status: 502, body: "" }).catch(() => {});
       });
       const response = await page.goto(target.href, { waitUntil: "domcontentloaded", timeout: pageTimeout });
-      if (obstruction) throw new ToolReadError(obstruction);
+      if (obstruction) throw new ToolReadError(obstruction, stopSource);
       if (!response?.ok()) throw new ToolReadError("The supplier document could not be opened.");
       const title = await page.title();
       if (/captcha|access denied|verify (you|your)|just a moment|sign in/i.test(title)) {
-        throw new ToolReadError("The supplier blocked automated access or requires sign-in.");
+        throw new ToolReadError("The supplier blocked automated access or requires sign-in.", true);
       }
       const json = await page.evaluate(() => {
         const payload = document.querySelector('script#guido-data[type="application/json"]');
@@ -120,8 +122,8 @@ export function playwrightTool(options: { catalogUrl: string; quoteUrl: string; 
   }
 
   return {
-    async listBranches({ area, currency }, signal) {
-      return catalogSchema.parse(await read(catalogUrl, { area, currency }, signal));
+    async listBranches({ area, currency, cursor }, signal) {
+      return catalogSchema.parse(await read(catalogUrl, { area, currency, ...(cursor !== undefined && { cursor }) }, signal));
     },
     async quote(input, signal) {
       const params = Object.fromEntries(Object.entries(input)

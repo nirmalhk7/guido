@@ -1,10 +1,10 @@
+import { setTimeout as delay } from "node:timers/promises";
 import {
-  catalogSchema, chargeKeys, quoteSchema, tripSchema, ToolReadError,
+  catalogSchema, chargeKeys, quoteSchema, tripSchema, ToolReadError, supplierLimitsSchema,
   type Branch, type CatalogRequest, type Environment, type QuoteRequest, type Supplier, type Tool, type Trip,
 } from "./contracts.ts";
 import { rankOptions, type EvaluatedBranch, type OptionFacts } from "./rank.ts";
 
-const maxBranches = 6;
 const maxConcurrentQuotes = 3;
 const operationTimeout = 8_000;
 const searchTimeout = 35_000;
@@ -70,11 +70,12 @@ function selectBranches(branches: Branch[], endpoint: Endpoint, supplier: string
       || endpoint.candidateBranches.some((entry) => entry.supplier === supplier && entry.branchId === branch.id)))
     .map((branch) => evaluateBranch(branch, endpoint, supplier, leg))
     .sort((a, b) => (a.access.minutes ?? Infinity) - (b.access.minutes ?? Infinity)
-      || (a.access.straightLineKm ?? Infinity) - (b.access.straightLineKm ?? Infinity)
+      || (a.access.straightLineKm ?? a.catalogDistanceKm ?? Infinity)
+         - (b.access.straightLineKm ?? b.catalogDistanceKm ?? Infinity)
       || a.id.localeCompare(b.id, "en"));
 }
 
-function limitBranches<T extends { kind: Branch["kind"] }>(branches: T[]) {
+function limitBranches<T extends { kind: Branch["kind"] }>(branches: T[], maxBranches: number) {
   const top = branches.slice(0, maxBranches);
   const otherKind = branches.find((branch) => !top.some(({ kind }) => kind === branch.kind));
   if (otherKind) top[maxBranches - 1] = otherKind;
@@ -88,29 +89,93 @@ function attempt(supplierId: string, tool: ProviderTool, operation: Attempt["ope
   };
 }
 
-async function discover(supplier: string, tools: ProviderTool[], input: CatalogRequest, legs: Leg[], signal: AbortSignal) {
+function supplierBudget(supplier: Supplier, signal: AbortSignal) {
+  const limits = supplierLimitsSchema.parse(supplier.limits ?? {});
+  const stopped = new Set<string>();
+  let nextStart = 0;
+  let quotesStarted = 0;
+  return {
+    limits,
+    stopped,
+    get quotesStarted() { return quotesStarted; },
+    async run<T>(id: string, quote: boolean, work: (signal: AbortSignal) => Promise<T>) {
+      signal.throwIfAborted();
+      if (stopped.has(id) || quote && quotesStarted >= limits.quoteRequests) return undefined;
+      const now = performance.now();
+      const wait = Math.max(0, nextStart - now);
+      nextStart = now + wait + limits.intervalMs;
+      if (wait > 0) await delay(wait, undefined, { signal });
+      if (stopped.has(id) || quote && quotesStarted >= limits.quoteRequests) return undefined;
+      try {
+        return await invoke((signal) => {
+          if (quote) quotesStarted++;
+          return work(signal);
+        }, signal);
+      } catch (error) {
+        if (error instanceof ToolReadError && error.stopSource) stopped.add(id);
+        throw error;
+      }
+    },
+  };
+}
+
+type Budget = ReturnType<typeof supplierBudget>;
+
+async function discover(supplier: string, tools: ProviderTool[], input: CatalogRequest, legs: Leg[], budget: Budget, signal: AbortSignal) {
   const attempts: Attempt[] = [];
   const branches = new Map<string, Branch>();
+  let pages = 0;
   let complete = false;
   for (const tool of tools) {
-    const row = attempt(supplier, tool, legs[0]);
-    try {
-      if (!tool.tool) throw new Error();
-      const catalog = catalogSchema.parse(await invoke((signal) => tool.tool!.listBranches(input, signal), signal));
-      for (const branch of catalog.branches) {
-        if (!branches.has(branch.id)) branches.set(branch.id, branch);
+    const adapter = tool.tool;
+    if (!adapter || signal.aborted) continue;
+    const cursors = new Set<string>();
+    let cursor: string | undefined;
+    let partial = false;
+    do {
+      let started = false;
+      const row = attempt(supplier, tool, legs[0]);
+      try {
+        const catalog = await budget.run(tool.id, false, async (signal) => {
+          started = true;
+          pages++;
+          row.at = new Date().toISOString();
+          return catalogSchema.parse(await adapter.listBranches({
+            area: input.area, currency: input.currency,
+            ...(tool.catalogByDate && { at: input.at }),
+            ...(cursor !== undefined && { cursor }),
+          }, signal));
+        });
+        if (!catalog) break;
+        for (const branch of catalog.branches) {
+          if (!branches.has(branch.id)) branches.set(branch.id, branch);
+        }
+        cursor = catalog.nextCursor;
+        row.reason = catalog.partialReason;
+        if (cursor && cursors.has(cursor)) row.reason ??= "The source repeated a catalog cursor.";
+        if (cursor && pages >= budget.limits.catalogPagesPerLeg) row.reason ??= "Catalog page budget reached before the source finished.";
+        partial ||= row.reason !== undefined;
+        row.outcome = row.reason || cursor ? "partial" : "complete";
+        if (cursor && (cursors.has(cursor) || pages >= budget.limits.catalogPagesPerLeg)) break;
+        if (cursor) cursors.add(cursor);
+        else complete = !partial;
+      } catch (error) {
+        row.reason = failure(error);
+        break;
+      } finally {
+        if (started) {
+          attempts.push(row);
+          if (legs.length === 2) attempts.push({ ...row, operation: legs[1] });
+        }
       }
-      row.outcome = catalog.partialReason ? "partial" : "complete";
-      row.reason = catalog.partialReason;
-      complete = !catalog.partialReason;
-    } catch (error) {
-      row.reason = failure(error);
-    }
-    attempts.push(row);
-    if (legs.length === 2) attempts.push({ ...row, operation: legs[1] });
-    if (complete || signal.aborted) break;
+    } while (cursor && !signal.aborted);
+    if (complete || pages >= budget.limits.catalogPagesPerLeg) break;
   }
-  return { branches: [...branches.values()], attempts, complete };
+  return {
+    branches: [...branches.values()], attempts, complete, pages,
+    state: complete ? "complete" as const : branches.size ? "partial" as const
+      : attempts.length ? "unavailable" as const : "unverified" as const,
+  };
 }
 
 function quoteCoverage(option: OptionFacts, request: QuoteRequest) {
@@ -122,7 +187,7 @@ function quoteCoverage(option: OptionFacts, request: QuoteRequest) {
 
 async function quotePair(
   supplier: Supplier, tools: ProviderTool[], trip: Trip,
-  pickup: EvaluatedBranch, dropoff: EvaluatedBranch, signal: AbortSignal,
+  pickup: EvaluatedBranch, dropoff: EvaluatedBranch, budget: Budget, signal: AbortSignal,
 ) {
   const input: QuoteRequest = {
     pickupId: pickup.id, returnId: dropoff.id, pickupAt: trip.pickupAt, returnAt: trip.returnAt,
@@ -137,10 +202,12 @@ async function quotePair(
     const adapter = tool.tool;
     if (!adapter) continue;
     try {
-      const quote = quoteSchema.parse(await invoke((signal) => {
+      const quote = await budget.run(tool.id, true, async (signal) => {
+        row.at = new Date().toISOString();
         attempts.push(row);
-        return adapter.quote(input, signal);
-      }, signal));
+        return quoteSchema.parse(await adapter.quote(input, signal));
+      });
+      if (!quote) continue;
       if (quote.status === "unavailable") {
         row.reason = quote.reason;
       } else if (quote.status === "no_cars") {
@@ -150,7 +217,7 @@ async function quotePair(
         if (!options.size) break;
       } else {
         const observedAt = new Date().toISOString();
-        let complete = true;
+        let complete = !quote.partialReason;
         for (const offer of quote.offers) {
           const option: OptionFacts = {
             id: [supplier.id, pickup.id, dropoff.id, offer.id].join("/"),
@@ -162,8 +229,8 @@ async function quotePair(
           complete &&= quoteCoverage(option, input) === chargeKeys.length;
         }
         row.outcome = complete ? "complete" : "partial";
-        if (!complete) row.reason = "Some required charges or quotes meeting the requested vehicle and currency criteria were unavailable.";
-        if ([...options.values()].every((option) => quoteCoverage(option, input) === chargeKeys.length)) {
+        if (!complete) row.reason = quote.partialReason ?? "Some required charges or quotes meeting the requested vehicle and currency criteria were unavailable.";
+        if (!quote.partialReason && [...options.values()].every((option) => quoteCoverage(option, input) === chargeKeys.length)) {
           outcome = "complete";
           break;
         }
@@ -174,7 +241,16 @@ async function quotePair(
     }
     if (signal.aborted) break;
   }
-  return { attempts, options: [...options.values()], outcome: attempts.length ? outcome : "untried" as const };
+  return {
+    attempts, options: [...options.values()], outcome: attempts.length ? outcome : "untried" as const,
+    reason: attempts.length ? undefined : untriedReason(budget, signal),
+  };
+}
+
+function untriedReason(budget: Budget, signal: AbortSignal) {
+  if (signal.aborted) return failure(signal.reason);
+  if (budget.quotesStarted >= budget.limits.quoteRequests) return "Supplier quote request budget reached.";
+  return "No eligible quote source remained.";
 }
 
 async function searchSupplier(supplier: Supplier, trip: Trip, signal: AbortSignal) {
@@ -199,12 +275,16 @@ async function compareSupplier(supplier: Supplier, tools: ProviderTool[], trip: 
   const destination = trip.destination ?? {
     area: trip.origin.area, label: trip.origin.label, coordinates: trip.origin.coordinates, accessByBranch: [],
   };
-  const areasMatch = destination.area.toLowerCase() === trip.origin.area.toLowerCase();
+  const sharedCatalog = destination.area.toLowerCase() === trip.origin.area.toLowerCase()
+    && !tools.some(({ catalogByDate }) => catalogByDate);
+  const budget = supplierBudget(supplier, signal);
   const { currency, oneWay } = trip.preferences;
-  const pickupCatalog = discover(supplier.id, tools, { area: trip.origin.area, currency }, areasMatch ? ["pickup", "return"] : ["pickup"], signal);
+  const pickupCatalog = discover(supplier.id, tools, { area: trip.origin.area, currency, at: trip.pickupAt },
+    sharedCatalog ? ["pickup", "return"] : ["pickup"], budget, signal);
   const [pickups, returns] = await Promise.all([
     pickupCatalog,
-    areasMatch ? pickupCatalog : discover(supplier.id, tools, { area: destination.area, currency }, ["return"], signal),
+    sharedCatalog ? pickupCatalog : discover(supplier.id, tools, { area: destination.area, currency, at: trip.returnAt },
+      ["return"], budget, signal),
   ]);
   const pickupBranches = selectBranches(pickups.branches, trip.origin, supplier.id, "pickup", trip);
   const returnBranches = selectBranches(returns.branches, destination, supplier.id, "return", trip);
@@ -212,13 +292,14 @@ async function compareSupplier(supplier: Supplier, tools: ProviderTool[], trip: 
   const shared = pickupBranches.filter((pickup) => returnBranches.some((dropoff) => pickup.id === dropoff.id));
   const pickupCandidates = oneWay ? pickupBranches : shared;
   const returnCandidates = oneWay ? returnBranches : returnBranches.filter((dropoff) => shared.some((pickup) => pickup.id === dropoff.id));
-  const limitedPickups = limitBranches(pickupCandidates);
-  const limitedReturns = oneWay ? limitBranches(returnCandidates)
+  const limitedPickups = limitBranches(pickupCandidates, budget.limits.branchesPerLeg);
+  const limitedReturns = oneWay ? limitBranches(returnCandidates, budget.limits.branchesPerLeg)
     : returnCandidates.filter((dropoff) => limitedPickups.some((pickup) => pickup.id === dropoff.id));
-  const pairs = limitedPickups.flatMap((pickup) => limitedReturns
-    .filter((dropoff) => oneWay || pickup.id === dropoff.id)
-    .map((dropoff) => ({ pickup, dropoff })));
-  const attempts = areasMatch ? pickups.attempts : [...pickups.attempts, ...returns.attempts];
+  const pairs = limitedPickups.flatMap((pickup, i) => limitedReturns
+    .map((dropoff, j) => ({ pickup, dropoff, order: i + j }))
+    .filter(({ dropoff }) => oneWay || pickup.id === dropoff.id))
+    .sort((a, b) => a.order - b.order);
+  const attempts = sharedCatalog ? pickups.attempts : [...pickups.attempts, ...returns.attempts];
   const candidateSummary = ({ id, name }: Branch) => ({ id, name });
   const omitted = {
     pickups: pickupCandidates.filter((branch) => !limitedPickups.includes(branch)).map(candidateSummary),
@@ -227,17 +308,18 @@ async function compareSupplier(supplier: Supplier, tools: ProviderTool[], trip: 
   };
   const truncated = omitted.pairs > 0;
   const results: Awaited<ReturnType<typeof quotePair>>[] = [];
-  for (let index = 0; index < pairs.length && !signal.aborted; index += maxConcurrentQuotes) {
+  for (let index = 0; index < pairs.length && !signal.aborted && budget.quotesStarted < budget.limits.quoteRequests; index += maxConcurrentQuotes) {
     const batch = await Promise.all(pairs.slice(index, index + maxConcurrentQuotes).map(({ pickup, dropoff }) =>
-      quotePair(supplier, tools, trip, pickup, dropoff, signal)));
+      quotePair(supplier, tools, trip, pickup, dropoff, budget, signal)));
     results.push(...batch);
   }
   const options = results.flatMap((result) => result.options);
   const pairsChecked = results.filter((result) => result.attempts.length > 0).length;
   const incomplete = !pickups.complete || !returns.complete || truncated || pairsChecked < pairs.length
     || results.some((result) => result.outcome === "partial" || result.outcome === "unavailable");
-  let status: "complete" | "partial" | "unavailable" | "no_cars" | "no_matching_branches";
-  if ((!pickups.complete && !pickups.branches.length) || (!returns.complete && !returns.branches.length)) status = "unavailable";
+  let status: "complete" | "partial" | "unavailable" | "unverified" | "no_cars" | "no_matching_branches";
+  if (!tools.length) status = "unverified";
+  else if ((!pickups.complete && !pickups.branches.length) || (!returns.complete && !returns.branches.length)) status = "unavailable";
   else if (!pairs.length) status = incomplete ? "partial" : "no_matching_branches";
   else if (incomplete) status = options.length || results.some((result) => result.outcome === "no_cars") ? "partial" : "unavailable";
   else status = options.length ? "complete" : "no_cars";
@@ -247,10 +329,16 @@ async function compareSupplier(supplier: Supplier, tools: ProviderTool[], trip: 
     coverage: {
       supplierId: supplier.id, supplier: supplier.name, status,
       pickupCandidates: pickupBranches.length, returnCandidates: returnBranches.length,
-      pairsPlanned: pairs.length, pairsChecked, truncated, omitted,
+      pairsPlanned: pairs.length, pairsChecked, quotesAttempted: budget.quotesStarted, truncated, omitted,
+      limits: budget.limits,
+      discovery: {
+        pickup: { state: pickups.state, pagesAttempted: pickups.pages },
+        return: { state: returns.state, pagesAttempted: returns.pages },
+      },
       pairs: pairs.map(({ pickup, dropoff }, index) => ({
         pickup: candidateSummary(pickup), return: candidateSummary(dropoff),
         status: results[index]?.outcome ?? "untried" as const,
+        reason: results[index] ? results[index].reason : untriedReason(budget, signal),
       })),
     },
   };
@@ -274,7 +362,7 @@ export async function compareRentals(rawTrip: unknown, suppliers: Supplier[], en
       pickupAt: trip.pickupAt, returnAt: trip.returnAt, preferences: trip.preferences,
     },
     rankingRule: ranked.rule,
-    branchSelection: "Up to six branches per leg and supplier, ordered by available travel time, then straight-line distance, then branch ID. When available, both airport and non-airport branches are represented.",
+    branchSelection: "Suppliers report catalog pages, branch and quote limits, and untried pairs. Candidates are sorted by travel time, then distance when known, then station ID. Airports and neighborhood stations are represented when available.",
     recommendation,
     options: ranked.options,
     coverage: results.map((result) => result.coverage),

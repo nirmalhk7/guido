@@ -14,7 +14,7 @@ const chargeLabels = {
   youngDriver: "Young driver fee", additionalDriver: "Additional driver fee", otherMandatory: "Other mandatory charges",
 };
 const coverageLabels = {
-  complete: "Quotes returned", partial: "Partial coverage", unavailable: "Unavailable",
+  complete: "Quotes returned", partial: "Partial coverage", unavailable: "Unavailable", unverified: "Source unconfigured",
   no_cars: "No cars for checked combinations", no_matching_branches: "No matching branches",
 };
 const attemptLabels = {
@@ -171,7 +171,7 @@ export function RentalSearch() {
 
 function SearchResults({ result, route }: { result: Comparison; route: string }) {
   const [limit, setLimit] = useState(12);
-  const partial = result.coverage.some(({ status }) => status === "partial" || status === "unavailable");
+  const partial = result.coverage.some(({ status }) => status === "partial" || status === "unavailable" || status === "unverified");
   const available = result.options.length > 0;
   return (
     <section className="space-y-4" aria-labelledby="results-title">
@@ -198,7 +198,9 @@ function SearchResults({ result, route }: { result: Comparison; route: string })
           {result.coverage.map((entry) => (
             <details key={entry.supplierId} className="text-[15px]">
               <summary className={disclosure}>{entry.supplier} · {coverageLabels[entry.status]}
-                {" · "}{entry.pairsChecked}/{entry.pairsPlanned + entry.omitted.pairs} combinations checked</summary>
+                {" · "}{entry.pairsChecked}/{entry.pairsPlanned + entry.omitted.pairs} combinations attempted</summary>
+              <p className="mt-2 text-[14px]">Pickup catalog {entry.discovery.pickup.state} · Return catalog {entry.discovery.return.state} · {entry.quotesAttempted} quote requests</p>
+              {entry.status === "unverified" ? <p className="text-[14px]">This supplier needs an authorized quote source.</p> : null}
               {entry.omitted.pairs > 0 ? (
                 <p className="mt-2 text-[14px]">{entry.omitted.pairs} pairs were untried because of the branch limit.
                   {entry.omitted.pickups.length ? ` Omitted pickups: ${entry.omitted.pickups.map(({ name }) => name).join(", ")}.` : ""}
@@ -207,7 +209,7 @@ function SearchResults({ result, route }: { result: Comparison; route: string })
               ) : null}
               <ul className="mt-2 space-y-1 text-[14px]">
                 {entry.pairs.map((pair) => (
-                  <li key={`${pair.pickup.id}/${pair.return.id}`}>{pair.pickup.name} → {pair.return.name} · {attemptLabels[pair.status]}</li>
+                  <li key={`${pair.pickup.id}/${pair.return.id}`}>{pair.pickup.name} → {pair.return.name} · {attemptLabels[pair.status]}{pair.reason ? ` · ${pair.reason}` : ""}</li>
                 ))}
               </ul>
             </details>
@@ -218,7 +220,7 @@ function SearchResults({ result, route }: { result: Comparison; route: string })
             <ul className="mt-2 space-y-1">
               {result.attempts.map((entry, index) => (
                 <li key={index}>
-                  {entry.source} · {entry.operation === "quote" ? `${entry.pickupId} → ${entry.returnId}` : `${entry.operation} branches`}
+                  {entry.supplierId} · {entry.source} · {entry.operation === "quote" ? `${entry.pickupId} → ${entry.returnId}` : `${entry.operation} branches`}
                   {" · "}{attemptLabels[entry.outcome]}{entry.reason ? ` · ${entry.reason}` : ""}
                   {" · "}<time dateTime={entry.at}>{new Date(entry.at).toLocaleTimeString()}</time>
                 </li>
@@ -243,8 +245,9 @@ function AccessLeg({ branch, leg, currency }: { branch: Option["pickup"]; leg: "
       {branch.address ? <p className="text-[14px] text-muted-foreground">{branch.address}</p> : null}
       <p className="mt-1 text-[14px]">{access.minutes === null ? "Travel time unknown" : `${access.minutes} min`}
         {" · "}{access.costCents === null ? "Access cost unknown" : money(access.costCents, currency)}</p>
-      <p className="text-[13px] text-muted-foreground">{basis}{access.straightLineKm === null ? "" : ` · ${access.straightLineKm} km straight line`}</p>
+      <p className="text-[13px] text-muted-foreground">{basis}{access.straightLineKm !== null ? ` · ${access.straightLineKm} km straight line` : branch.catalogDistanceKm === undefined ? "" : ` · ${branch.catalogDistanceKm.toFixed(1)} km from catalog reference`}</p>
       {access.note ? <p className="text-[13px] text-muted-foreground">{access.note}</p> : null}
+      {branch.hours ? <p className="text-[13px] text-muted-foreground">Branch hours {branch.hours}</p> : null}
       {leg === "pickup" && branch.pickupNote ? <p className="text-[13px] text-muted-foreground">{branch.pickupNote}</p> : null}
       {leg === "return" && branch.returnNote ? <p className="text-[13px] text-muted-foreground">{branch.returnNote}</p> : null}
     </div>
@@ -284,7 +287,14 @@ function OfferCard({ option, currency }: { option: Option; currency: string }) {
             <dt className="font-medium">{option.rentalTotalCents === null ? "Known rental subtotal" : "Rental total"}</dt>
             <dd className="tabular text-right">{option.knownRentalCents === null ? "Unknown" : money(option.knownRentalCents, offer.currency)}</dd>
           </dl>
+          {offer.supplierEstimateCents !== undefined ? (
+            <p className="mt-2">Supplier rental estimate {money(offer.supplierEstimateCents, offer.currency)}</p>
+          ) : null}
+          {offer.pickupHours ? <p className="mt-1">Pickup hours {offer.pickupHours}</p> : null}
+          {offer.returnHours ? <p className="mt-1">Return hours {offer.returnHours}</p> : null}
+          {offer.rentalTerms?.map((term) => <p key={term} className="mt-1">{term}</p>)}
           <p className="mt-2">{offer.cancellation ?? "Cancellation terms unknown."}</p>
+          {offer.providerReference ? <p className="mt-1">Source reference {offer.providerReference}</p> : null}
           <p className="mt-1 text-muted-foreground">{source.url
             ? <a className="text-primary underline" href={source.url} target="_blank" rel="noreferrer">{source.id}</a> : source.id}
             {offer.quotedAt ? <>{" · "}<time dateTime={offer.quotedAt}>Quoted {new Date(offer.quotedAt).toLocaleString()}</time></> : null}

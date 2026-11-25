@@ -14,12 +14,15 @@
     "node": ">=24"
   },
   "dependencies": {
-    "playwright": "1.65.1",
+    "saxes": "6.0.0",
     "singlestore-nodejs": "1.0.1",
     "zod": "4.6.7"
   },
   "devDependencies": {
     "@types/node": "26.x",
     "typescript": "7.0.2"
+  },
+  "optionalDependencies": {
+    "playwright": "1.65.1"
   }
 }

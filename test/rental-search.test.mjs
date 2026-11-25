@@ -7,6 +7,7 @@ import test from "node:test";
 import { POST } from "../lib/rental/http.ts";
 import { loadSuppliers } from "../lib/rental/config.ts";
 import { compareRentals } from "../lib/rental/search.ts";
+import { ToolReadError } from "../lib/rental/contracts.ts";
 
 const sampleTrip = JSON.parse(await readFile(new URL("../examples/rental-trip.json", import.meta.url), "utf8"));
 const trip = { ...sampleTrip, origin: { area: "Maple Junction" }, destination: { area: "Harbor Point" } };
@@ -194,12 +195,12 @@ test("loads a configured module and continues after an earlier module is absent"
     });`);
     const path = join(temp, "providers.json");
     await writeFile(path, JSON.stringify([
-      { id: "test", name: "Test", sources: [
+      { id: "enterprise", name: "Test", limits: { intervalMs: 0 }, sources: [
         { id: "missing", kind: "module", file: "./missing.mjs" },
         { id: "module", kind: "module", file: "./adapter.mjs", settings: { quote: quote() } },
       ] },
     ]));
-    const result = await compareRentals(onePair, await loadSuppliers("live", path), "live");
+    const result = await compareRentals(trip, await loadSuppliers("live", path), "live");
     assert.equal(result.options[0].source.id, "module");
     assert.match(result.attempts[0].reason, /module could not be loaded/);
   } finally {
@@ -238,12 +239,12 @@ test("reports omitted combinations and individual pairs untried when the remaini
   assert.equal(coverage.pairs.filter(({ status }) => status !== "untried").length, coverage.pairsChecked);
 });
 
-test("the default live selection reports unavailable and keeps synthetic offers out", async () => {
+test("the default live selection reports the three unconfigured suppliers as unverified", async () => {
   const result = await compareRentals(sampleTrip, await loadSuppliers("live", ""), "live");
   assert.equal(result.environment, "live");
-  assert.equal(result.coverage[0].status, "unavailable");
-  assert.equal(result.attempts[0].source, "playwright");
-  assert.match(result.attempts[0].reason, /GUIDO_RENTAL_CONFIG/);
+  assert.deepEqual(result.coverage.map(({ supplierId, status }) => [supplierId, status]),
+    [["hertz", "unverified"], ["avis", "unverified"], ["enterprise", "unverified"]]);
+  assert.deepEqual(result.attempts, []);
   assert.deepEqual(result.options, []);
 });
 
@@ -293,4 +294,93 @@ test("cancellation counts adapter calls that began, even inside a partially sche
   assert.equal(result.attempts.filter(({ operation }) => operation === "quote").length, 1);
   assert.deepEqual(coverage.pairs.filter(({ status }) => status !== "untried")
     .map((pair) => `${pair.pickup.id}/${pair.return.id}`), calls);
+});
+
+test("catalog cursors discover both legs, deduplicate stable stations and report page caps and repeated cursors", async () => {
+  const fetches = [];
+  const source = tool("paged", {
+    async listBranches({ area, cursor }) {
+      fetches.push([area, cursor]);
+      if (cursor === undefined) return { branches: [localBranch], nextCursor: "two" };
+      return { branches: [localBranch, airport], nextCursor: area === "Maple Junction" ? "two" : undefined };
+    },
+  });
+  const result = await compareRentals(trip, [supplier([source])], "live");
+  assert.deepEqual(fetches, [["Maple Junction", undefined], ["Harbor Point", undefined], ["Maple Junction", "two"], ["Harbor Point", "two"]]);
+  const [coverage] = result.coverage;
+  assert.equal(coverage.pickupCandidates, 2);
+  assert.equal(coverage.returnCandidates, 2);
+  assert.equal(coverage.discovery.pickup.state, "partial");
+  assert.equal(coverage.discovery.return.state, "complete");
+  assert.equal(coverage.pairsChecked, 4);
+  assert.match(result.attempts.find(({ reason }) => reason?.includes("cursor")).reason, /repeated/);
+  const limited = await compareRentals(trip, [{
+    ...supplier([source]), limits: { catalogPagesPerLeg: 1 },
+  }], "live");
+  assert.equal(limited.coverage[0].discovery.pickup.pagesAttempted, 1);
+  assert.equal(limited.coverage[0].status, "partial");
+  assert.match(limited.attempts[0].reason, /page budget/);
+});
+
+test("an exact shared quote budget counts fallback requests and reports impossible remaining checks as untried", async () => {
+  const via = [];
+  const primary = tool("primary", {
+    async quote() { via.push("primary"); return { status: "unavailable", reason: "Fixture upstream outage." }; },
+  });
+  const alternate = tool("alternate", {
+    async quote() { via.push("alternate"); return quote(); },
+  });
+  const [coverage] = (await compareRentals(sameCity, [{
+    ...supplier([primary, alternate]), limits: { quoteRequests: 2 },
+  }], "live")).coverage;
+  assert.deepEqual(via, ["primary", "primary"]);
+  assert.equal(coverage.quotesAttempted, 2);
+  assert.equal(coverage.pairsChecked, 2);
+  assert.equal(coverage.pairs.filter(({ status, reason }) => status === "untried" && /budget/.test(reason)).length, 2);
+
+  const single = await compareRentals(onePair, [{
+    ...supplier([primary, alternate]), limits: { quoteRequests: 2 },
+  }], "live");
+  assert.equal(single.coverage[0].pairsChecked, 1);
+  assert.equal(single.coverage[0].quotesAttempted, 2);
+  assert.ok(single.recommendation);
+});
+
+test("shopping completes all ordered pairs for three independent suppliers without crossing station namespaces", async () => {
+  const newer = new Date().toISOString();
+  const counts = [];
+  const three = ["hertz", "avis", "enterprise"].map((brand, index) => supplier([tool("documented-source", {
+    async quote({ pickupId, returnId }) {
+      counts.push([brand, pickupId, returnId]);
+      return quote({ ...completeCharges, base: 12_000 + index * 1000 }, { quotedAt: newer });
+    },
+  })], brand));
+  const result = await compareRentals(sameCity, three, "live");
+  assert.equal(new Set(counts.map((row) => row.join("/"))).size, 12);
+  for (const [idx, { supplierId, pairsChecked, status }] of result.coverage.entries()) {
+    assert.equal(pairsChecked, 4);
+    assert.equal(status, "complete");
+    assert.deepEqual(new Set(counts.filter(([brand]) => brand === supplierId).map(([, pickup, dropoff]) => `${pickup}/${dropoff}`)),
+      new Set(["apt/apt", "apt/local", "local/apt", "local/local"]));
+    assert.equal(result.options.find(({ id }) => id.startsWith(supplierId)).offer.charges.base, 12_000 + idx * 1000);
+  }
+  assert.match(result.recommendation, /^hertz\//);
+  assert.ok(result.options.every(({ offer }) => offer.quotedAt === newer));
+});
+
+test("supplier stop signals prevent further paced calls and leave the remaining pairs untried", async () => {
+  let calls = 0;
+  const blocked = tool("blocked", {
+    async quote() {
+      calls++;
+      throw new ToolReadError("Supplier rate limit reached.", true);
+    },
+  });
+  const result = await compareRentals(sameCity, [{
+    ...supplier([blocked]), limits: { intervalMs: 10 },
+  }], "live");
+  assert.equal(calls, 1);
+  assert.equal(result.coverage[0].quotesAttempted, 1);
+  assert.equal(result.coverage[0].pairs.filter(({ status }) => status === "untried").length, 3);
+  assert.equal(result.attempts.filter(({ operation }) => operation === "quote").length, 1);
 });

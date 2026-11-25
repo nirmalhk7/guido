@@ -30,7 +30,7 @@ test("portable UI and Playwright compare each ordered pair against a controlled 
     }
     if (url.pathname !== "/quotes") return res.writeHead(500).end("Unexpected route");
     const pair = `${url.searchParams.get("pickupId")}/${url.searchParams.get("returnId")}`;
-    if (pair === "san-mateo/sfo") return res.writeHead(403).end();
+    if (pair === "san-mateo/sfo") return res.writeHead(503).end();
     if (pair === "belmont/san-mateo") return res.writeHead(302, { location: "/sign-in" }).end();
     if (pair === "sfo/san-mateo") return res.writeHead(200, { "content-type": "text/html" }).end("<title>Verify your browser</title>");
     if (pair === "sfo/sfo") return respond({ status: "no_cars" });
@@ -53,7 +53,7 @@ test("portable UI and Playwright compare each ordered pair against a controlled 
   t.after(() => rm(temp, { recursive: true, force: true }));
   const config = join(temp, "providers.json");
   await writeFile(config, JSON.stringify([
-    { id: "test", name: "Controlled Quote Source", sources: [{
+    { id: "enterprise", name: "Controlled Quote Source", limits: { intervalMs: 0 }, sources: [{
       id: "chromium", kind: "playwright", catalogUrl: `${stubOrigin}/catalog`, quoteUrl: `${stubOrigin}/quotes`,
     }] },
   ]));
@@ -96,11 +96,13 @@ test("portable UI and Playwright compare each ordered pair against a controlled 
   ]);
   assert.equal(response.status(), 200, await response.text());
   const result = await response.json();
-  assert.equal(result.recommendation, "test/belmont/sfo/economy");
+  assert.equal(result.recommendation, "enterprise/belmont/sfo/economy");
   assert.equal(result.options[0].source.id, "chromium");
   assert.equal(result.options[0].source.url, `${stubOrigin}/quotes`);
   assert.equal(result.options[0].offer.quotedAt, "2026-11-23T10:00:00Z");
-  const coverage = result.coverage[0];
+  const coverage = result.coverage.find(({ supplierId }) => supplierId === "enterprise");
+  assert.deepEqual(result.coverage.filter(({ supplierId }) => supplierId !== "enterprise").map(({ status }) => status),
+    ["unverified", "unverified"]);
   assert.equal(coverage.pairsChecked, 9);
   assert.equal(coverage.pairs.filter(({ status }) => status === "unavailable").length, 3);
   assert.equal(coverage.pairs.filter(({ status }) => status === "no_cars").length, 1);
@@ -120,7 +122,7 @@ test("portable UI and Playwright compare each ordered pair against a controlled 
   }
   assert.equal(expected.size, 0);
 
-  await page.getByText("Controlled Quote Source · Partial coverage · 9/9 combinations checked").click();
+  await page.getByText("Controlled Quote Source · Partial coverage · 9/9 combinations attempted").click();
   await page.getByText("San Mateo test branch → SFO test branch · Unavailable").waitFor();
   await page.getByText("Price and quote details").first().click();
   await page.getByText("Quoted", { exact: false }).first().waitFor();

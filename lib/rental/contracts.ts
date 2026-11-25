@@ -57,10 +57,13 @@ export const branchSchema = z.strictObject({
   returnToCenter: access.optional(),
   pickupNote: label.optional(),
   returnNote: label.optional(),
+  catalogDistanceKm: z.number().nonnegative().max(20_000).optional(),
+  hours: label.optional(),
 });
 export const catalogSchema = z.strictObject({
   branches: z.array(branchSchema).max(250),
   partialReason: label.optional(),
+  nextCursor: z.string().min(1).max(512).optional(),
 }).refine(({ branches }) => new Set(branches.map(({ id }) => id)).size === branches.length, "Duplicate branch ID");
 
 export const chargeKeys = ["base", "taxes", "airport", "oneWay", "youngDriver", "additionalDriver", "otherMandatory"] as const;
@@ -79,11 +82,16 @@ export const offerSchema = z.strictObject({
   currency,
   charges: z.partialRecord(z.enum(chargeKeys), charge).refine(({ base }) => base !== "included").default({}),
   cancellation: label.optional(),
+  supplierEstimateCents: money.optional(),
+  providerReference: id.optional(),
+  rentalTerms: z.array(label).max(12).optional(),
+  pickupHours: label.optional(),
+  returnHours: label.optional(),
   quotedAt: dateTime.optional(),
   sourceUrl: evidenceUrl.optional(),
 });
 export const quoteSchema = z.discriminatedUnion("status", [
-  z.strictObject({ status: z.literal("available"), offers: z.array(offerSchema).min(1).max(30) })
+  z.strictObject({ status: z.literal("available"), offers: z.array(offerSchema).min(1).max(30), partialReason: label.optional() })
     .refine(({ offers }) => new Set(offers.map(({ id }) => id)).size === offers.length, "Duplicate offer ID"),
   z.strictObject({ status: z.literal("no_cars") }),
   z.strictObject({ status: z.literal("unavailable"), reason: label }),
@@ -94,7 +102,7 @@ export type Branch = z.infer<typeof branchSchema>;
 export type Offer = z.infer<typeof offerSchema>;
 export type Access = z.infer<typeof access>;
 export type Environment = "live" | "fixture";
-export type CatalogRequest = { area: string; currency: string };
+export type CatalogRequest = { area: string; currency: string; at?: string; cursor?: string };
 export type QuoteRequest = {
   pickupId: string;
   returnId: string;
@@ -106,7 +114,20 @@ export type QuoteRequest = {
   driverAge: number;
   drivers: number;
 };
-export class ToolReadError extends Error {}
+export class ToolReadError extends Error {
+  stopSource: boolean;
+  constructor(message: string, stopSource = false) {
+    super(message);
+    this.stopSource = stopSource;
+  }
+}
+
+export const supplierLimitsSchema = z.strictObject({
+  branchesPerLeg: z.int().min(2).max(16).default(6),
+  catalogPagesPerLeg: z.int().min(1).max(20).default(6),
+  quoteRequests: z.int().min(1).max(100).default(36),
+  intervalMs: z.int().min(0).max(5000).default(0),
+});
 
 export type Tool = {
   listBranches(input: CatalogRequest, signal: AbortSignal): Promise<z.input<typeof catalogSchema>>;
@@ -116,5 +137,6 @@ export type Tool = {
 export type Supplier = {
   id: string;
   name: string;
-  tools: { id: string; environment: Environment; create: () => Tool }[];
+  tools: { id: string; environment: Environment; catalogByDate?: boolean; create: () => Tool }[];
+  limits?: Partial<z.infer<typeof supplierLimitsSchema>>;
 };
