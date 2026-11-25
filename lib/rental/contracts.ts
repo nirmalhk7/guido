@@ -74,6 +74,32 @@ const evidenceUrl = z.url({ protocol: /^https?$/ }).refine((url) => {
   return !parsed.username && !parsed.password;
 });
 
+export const followupOperations = ["rate_rules", "pickup_details", "return_details"] as const;
+export type FollowupOperation = typeof followupOperations[number];
+const evidence = z.strictObject({
+  operation: z.enum(followupOperations),
+  status: z.enum(["matched", "informational", "unavailable", "untried"]),
+  summary: label,
+  sourceUrl: evidenceUrl,
+  providerReference: id.optional(),
+  observedAt: dateTime.optional(),
+  details: z.array(label).max(12).optional(),
+  lineItems: z.array(z.strictObject({
+    category: label,
+    name: label.optional(),
+    basis: label.optional(),
+    amountCents: money.optional(),
+    percentage: z.number().nonnegative().max(1000).optional(),
+    inclusion: z.enum(["base", "total", "not_included", "unknown"]),
+  })).max(20).optional(),
+  amounts: z.strictObject({
+    baseCents: money.optional(),
+    estimateCents: money.optional(),
+    mandatoryCents: money.optional(),
+    dropOffCents: money.optional(),
+  }).optional(),
+});
+
 export const offerSchema = z.strictObject({
   id,
   vehicle: label,
@@ -84,6 +110,8 @@ export const offerSchema = z.strictObject({
   cancellation: label.optional(),
   supplierEstimateCents: money.optional(),
   providerReference: id.optional(),
+  supplementalEvidence: z.array(evidence).max(3).refine((entries) =>
+    new Set(entries.map(({ operation }) => operation)).size === entries.length, "Duplicate supplemental operation").optional(),
   rentalTerms: z.array(label).max(12).optional(),
   pickupHours: label.optional(),
   returnHours: label.optional(),
@@ -122,16 +150,22 @@ export class ToolReadError extends Error {
   }
 }
 
+export type RunFollowup = <T>(operation: FollowupOperation, work: (signal: AbortSignal) => Promise<T>) =>
+  Promise<{ status: "returned"; value: T; observedAt: string } | { status: "unavailable" | "untried"; reason: string }>;
+export type OfferEvidence = NonNullable<Offer["supplementalEvidence"]>[number];
+export type QuoteFollowup = (offerId: string, read: RunFollowup) => Promise<OfferEvidence[]>;
+
 export const supplierLimitsSchema = z.strictObject({
   branchesPerLeg: z.int().min(2).max(16).default(6),
   catalogPagesPerLeg: z.int().min(1).max(20).default(6),
   quoteRequests: z.int().min(1).max(100).default(36),
+  followupRequests: z.int().min(0).max(18).default(6),
   intervalMs: z.int().min(0).max(5000).default(0),
 });
 
 export type Tool = {
   listBranches(input: CatalogRequest, signal: AbortSignal): Promise<z.input<typeof catalogSchema>>;
-  quote(input: QuoteRequest, signal: AbortSignal): Promise<z.input<typeof quoteSchema>>;
+  quote(input: QuoteRequest, signal: AbortSignal): Promise<z.input<typeof quoteSchema> & { followup?: QuoteFollowup }>;
   close?(): Promise<void>;
 };
 export type Supplier = {

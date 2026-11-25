@@ -30,9 +30,9 @@ function matrix({ returnType = "Terminal", pickupTime = dates.pickupAt, same = f
   return envelope(`<v:VehicleSearchAvailabilityRsp TransactionId="FIXTURE220">
     <v:VehicleDateLocation PickupDateTime="${pickupTime}" ReturnDateTime="${dates.returnAt}">
       <v:VendorLocation ProviderCode="1G" VendorCode="ET" Type="Pickup" LocationCode="SFO" LocationType="CityCenterDowntown" VendorLocationID="01"
-        Key="pickup-key" BusinessHours="10:00–18:00"/>
+        Key="pickup-key"><v:BusinessHours>10:00–18:00</v:BusinessHours></v:VendorLocation>
       ${same ? "" : `<v:VendorLocation ProviderCode="1G" VendorCode="ET" Type="Return" LocationCode="SFO" LocationType="${returnType}"
-        VendorLocationID="1" BusinessHours="00:00–23:59"/>`}
+        VendorLocationID="1"><v:BusinessHours>00:00–23:59</v:BusinessHours></v:VendorLocation>`}
     </v:VehicleDateLocation>
     ${vehicles ? `<v:Vehicle VendorCode="${matchedVendor}" VendorLocationKey="${key}" VehicleClass="Economy" MakeModel="Synthetic economy"
       PassengerCount="4" AcrissVehicleCode="ECAR" TransmissionType="Automatic">
@@ -128,7 +128,7 @@ test("a Travelport comparison discovers each trip date and leaves the Matrix est
     origin: { area: "SFO", candidateBranches: [{ supplier: "enterprise", branchId: quoteInput.pickupId }] },
     destination: { area: "SFO", candidateBranches: [{ supplier: "enterprise", branchId: quoteInput.returnId }] },
     preferences: { drivers: 2, driverAge: 24 },
-  }, [{ id: "enterprise", name: "Enterprise", tools: [
+  }, [{ id: "enterprise", name: "Enterprise", limits: { followupRequests: 0 }, tools: [
     { id: "travelport", environment: "live", catalogByDate: true, create: () => adapter },
   ] }], "live");
   assert.equal(catalogs.length, 2);

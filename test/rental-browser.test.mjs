@@ -40,6 +40,13 @@ test("portable UI and Playwright compare each ordered pair against a controlled 
       offers: [{
         id: "economy", vehicle: "Sample economy", carClass: "economy", currency: "USD", quotedAt: "2026-11-23T10:00:00Z",
         sourceUrl: `http://${req.headers.host}/checkout`,
+        ...(pair === "san-mateo/belmont" && { supplementalEvidence: [{
+          operation: "rate_rules", status: "informational",
+          summary: "Supplier rules reported an estimate. Return fees still require verification.",
+          sourceUrl: "https://example.com/checkout",
+          amounts: { estimateCents: 24000 },
+          lineItems: [{ category: "Tax", name: "Synthetic display tax", percentage: 8.3, inclusion: "total" }],
+        }] }),
         charges: { base, taxes: "included", airport: 0, oneWay: pair === "san-mateo/belmont" ? null : 0,
           youngDriver: 0, additionalDriver: 0, otherMandatory: 0 },
       }],
@@ -100,6 +107,9 @@ test("portable UI and Playwright compare each ordered pair against a controlled 
   assert.equal(result.options[0].source.id, "chromium");
   assert.equal(result.options[0].source.url, `${stubOrigin}/quotes`);
   assert.equal(result.options[0].offer.quotedAt, "2026-11-23T10:00:00Z");
+  const provisional = result.options.find(({ id }) => id === "enterprise/san-mateo/belmont/economy");
+  assert.equal(provisional.estimatedTotalCents, null);
+  assert.equal(provisional.offer.supplementalEvidence[0].sourceUrl, `${stubOrigin}/quotes`);
   const coverage = result.coverage.find(({ supplierId }) => supplierId === "enterprise");
   assert.deepEqual(result.coverage.filter(({ supplierId }) => supplierId !== "enterprise").map(({ status }) => status),
     ["unverified", "unverified"]);
@@ -126,6 +136,9 @@ test("portable UI and Playwright compare each ordered pair against a controlled 
   await page.getByText("San Mateo test branch → SFO test branch · Unavailable").waitFor();
   await page.getByText("Price and quote details").first().click();
   await page.getByText("Quoted", { exact: false }).first().waitFor();
+  await page.getByText("Supplier rules and counter evidence").click();
+  await page.getByText("Synthetic display tax", { exact: false }).waitFor();
+  await page.getByText("Reported estimate", { exact: true }).waitFor();
   await page.getByRole("link", { name: "Audit-trail demo" }).click();
   await page.getByRole("link", { name: "Search rentals" }).waitFor();
   assert.deepEqual(errors, []);

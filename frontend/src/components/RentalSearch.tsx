@@ -13,6 +13,14 @@ const chargeLabels = {
   base: "Base rental", taxes: "Taxes", airport: "Airport fees", oneWay: "One-way fee",
   youngDriver: "Young driver fee", additionalDriver: "Additional driver fee", otherMandatory: "Other mandatory charges",
 };
+const supplementalLabels = {
+  rate_rules: "Rate rules", pickup_details: "Pickup counter details", return_details: "Return counter details",
+};
+const supplementalAmounts = {
+  baseCents: "Reported base", estimateCents: "Reported estimate", mandatoryCents: "Reported mandatory charges", dropOffCents: "Reported drop-off charge",
+};
+const chargeInclusion = { base: "in base", total: "in estimate", not_included: "excluded", unknown: "inclusion unknown" };
+
 const coverageLabels = {
   complete: "Quotes returned", partial: "Partial coverage", unavailable: "Unavailable", unverified: "Source unconfigured",
   no_cars: "No cars for checked combinations", no_matching_branches: "No matching branches",
@@ -199,7 +207,8 @@ function SearchResults({ result, route }: { result: Comparison; route: string })
             <details key={entry.supplierId} className="text-[15px]">
               <summary className={disclosure}>{entry.supplier} · {coverageLabels[entry.status]}
                 {" · "}{entry.pairsChecked}/{entry.pairsPlanned + entry.omitted.pairs} combinations attempted</summary>
-              <p className="mt-2 text-[14px]">Pickup catalog {entry.discovery.pickup.state} · Return catalog {entry.discovery.return.state} · {entry.quotesAttempted} quote requests</p>
+              <p className="mt-2 text-[14px]">Pickup catalog {entry.discovery.pickup.state} · Return catalog {entry.discovery.return.state} · {entry.quotesAttempted} quote requests
+                {entry.followupsAttempted > 0 ? ` · ${entry.followupsAttempted} follow-up requests` : ""}</p>
               {entry.status === "unverified" ? <p className="text-[14px]">This supplier needs an authorized quote source.</p> : null}
               {entry.omitted.pairs > 0 ? (
                 <p className="mt-2 text-[14px]">{entry.omitted.pairs} pairs were untried because of the branch limit.
@@ -220,7 +229,8 @@ function SearchResults({ result, route }: { result: Comparison; route: string })
             <ul className="mt-2 space-y-1">
               {result.attempts.map((entry, index) => (
                 <li key={index}>
-                  {entry.supplierId} · {entry.source} · {entry.operation === "quote" ? `${entry.pickupId} → ${entry.returnId}` : `${entry.operation} branches`}
+                  {entry.supplierId} · {entry.source} · {entry.operation === "pickup" || entry.operation === "return" ? `${entry.operation} branches`
+                    : `${entry.operation === "quote" ? "Quote" : supplementalLabels[entry.operation]} · ${entry.pickupId} → ${entry.returnId}`}
                   {" · "}{attemptLabels[entry.outcome]}{entry.reason ? ` · ${entry.reason}` : ""}
                   {" · "}<time dateTime={entry.at}>{new Date(entry.at).toLocaleTimeString()}</time>
                 </li>
@@ -300,6 +310,41 @@ function OfferCard({ option, currency }: { option: Option; currency: string }) {
             {offer.quotedAt ? <>{" · "}<time dateTime={offer.quotedAt}>Quoted {new Date(offer.quotedAt).toLocaleString()}</time></> : null}
             {" · "}<time dateTime={source.observedAt}>Observed {new Date(source.observedAt).toLocaleString()}</time></p>
         </details>
+        {offer.supplementalEvidence?.length ? (
+          <details className="text-[14px]">
+            <summary className={disclosure}>Supplier rules and counter evidence</summary>
+            <div className="mt-2 space-y-4">
+              {offer.supplementalEvidence.map((evidence) => (
+                <section key={evidence.operation} className="space-y-1">
+                  <h4 className="font-medium">{supplementalLabels[evidence.operation]}</h4>
+                  <p>{evidence.summary}</p>
+                  {evidence.amounts ? (
+                    <dl>{Object.entries(evidence.amounts).map(([key, amount]) => (
+                      <div key={key} className="flex justify-between gap-2">
+                        <dt>{supplementalAmounts[key as keyof typeof supplementalAmounts]}</dt>
+                        <dd>{money(amount, offer.currency)}</dd>
+                      </div>
+                    ))}</dl>
+                  ) : null}
+                  {evidence.lineItems?.length ? (
+                    <ul>{evidence.lineItems.map((item, index) => (
+                      <li key={index}>{item.name ?? item.category}
+                        {item.amountCents !== undefined ? ` · ${money(item.amountCents, offer.currency)}` : ""}
+                        {item.percentage !== undefined ? ` · ${item.percentage}%` : ""}
+                        {item.basis ? ` · ${item.basis}` : ""} · {chargeInclusion[item.inclusion]}</li>
+                    ))}</ul>
+                  ) : null}
+                  {evidence.details?.length ? <ul>{evidence.details.map((detail) => <li key={detail}>{detail}</li>)}</ul> : null}
+                  <p className="text-muted-foreground">
+                    {evidence.providerReference ? `${evidence.providerReference} · ` : ""}
+                    {evidence.observedAt ? <><time dateTime={evidence.observedAt}>{new Date(evidence.observedAt).toLocaleString()}</time>{" · "}</> : null}
+                    <a className="text-primary underline" href={evidence.sourceUrl} target="_blank" rel="noreferrer">Source documentation</a>
+                  </p>
+                </section>
+              ))}
+            </div>
+          </details>
+        ) : null}
       </CardBody>
     </Card>
   );

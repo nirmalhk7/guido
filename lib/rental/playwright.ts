@@ -16,6 +16,19 @@ export function publicReadUrl(value: string) {
   return url;
 }
 
+function shoppingEvidenceUrl(source: string | undefined, quoteUrl: URL) {
+  const url = source ? new URL(source) : new URL(quoteUrl);
+  url.search = "";
+  url.hash = "";
+  if (url.origin !== quoteUrl.origin) return quoteUrl.href;
+  try {
+    return publicReadUrl(url.href).href;
+  } catch {
+    // A source can report a reservation URL where shopping evidence was expected.
+    return quoteUrl.href;
+  }
+}
+
 export function playwrightTool(options: { catalogUrl: string; quoteUrl: string; executablePath?: string }): Tool {
   const catalogUrl = publicReadUrl(options.catalogUrl);
   const quoteUrl = publicReadUrl(options.quoteUrl);
@@ -133,20 +146,12 @@ export function playwrightTool(options: { catalogUrl: string; quoteUrl: string; 
       if (quote.status !== "available") return quote;
       return {
         ...quote,
-        offers: quote.offers.map(({ sourceUrl, ...offer }) => {
-          const url = sourceUrl ? new URL(sourceUrl) : new URL(quoteUrl);
-          url.search = "";
-          url.hash = "";
-          let evidence = quoteUrl.href;
-          if (url.origin === quoteUrl.origin) {
-            try {
-              evidence = publicReadUrl(url.href).href;
-            } catch {
-              // Quote pages sometimes return a reservation link where a source URL was expected.
-            }
-          }
-          return { ...offer, sourceUrl: evidence };
-        }),
+        offers: quote.offers.map(({ sourceUrl, supplementalEvidence, ...offer }) => ({
+          ...offer, sourceUrl: shoppingEvidenceUrl(sourceUrl, quoteUrl),
+          supplementalEvidence: supplementalEvidence?.map((evidence) => ({
+            ...evidence, sourceUrl: shoppingEvidenceUrl(evidence.sourceUrl, quoteUrl),
+          })),
+        })),
       };
     },
     async close() {

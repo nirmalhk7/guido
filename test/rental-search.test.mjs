@@ -384,3 +384,34 @@ test("supplier stop signals prevent further paced calls and leave the remaining 
   assert.equal(result.coverage[0].pairs.filter(({ status }) => status === "untried").length, 3);
   assert.equal(result.attempts.filter(({ operation }) => operation === "quote").length, 1);
 });
+
+test("all primary pairs start before price-ordered supplemental reads", async () => {
+  const order = [];
+  const source = tool("supplemental", {
+    async quote({ pickupId, returnId }) {
+      const pair = `${pickupId}/${returnId}`;
+      order.push(`quote ${pair}`);
+      return {
+        ...quote({ ...completeCharges, oneWay: null }, {
+          supplierEstimateCents: pickupId === "local" && returnId === "apt" ? 300 : 600,
+        }),
+        async followup(_offerId, read) {
+          const response = await read("rate_rules", async () => {
+            order.push(`rules ${pair}`);
+            return true;
+          });
+          assert.equal(response.status, "returned");
+          return [{ operation: "rate_rules", status: "informational", sourceUrl: "https://source.example/rules",
+            summary: "Synthetic rule evidence" }];
+        },
+      };
+    },
+  });
+  const result = await compareRentals(sameCity, [supplier([source])], "live");
+  assert.equal(result.coverage[0].pairsChecked, 4);
+  assert.equal(result.coverage[0].quotesAttempted, 4);
+  assert.equal(result.coverage[0].followupsAttempted, 2);
+  assert.ok(order.slice(0, 4).every((item) => item.startsWith("quote ")));
+  assert.equal(order[4], "rules local/apt");
+  assert.equal(result.recommendation, null);
+});

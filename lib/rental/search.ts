@@ -1,7 +1,8 @@
 import { setTimeout as delay } from "node:timers/promises";
 import {
-  catalogSchema, chargeKeys, quoteSchema, tripSchema, ToolReadError, supplierLimitsSchema,
-  type Branch, type CatalogRequest, type Environment, type QuoteRequest, type Supplier, type Tool, type Trip,
+  catalogSchema, chargeKeys, offerSchema, quoteSchema, tripSchema, ToolReadError, supplierLimitsSchema,
+  type Branch, type CatalogRequest, type Environment, type FollowupOperation, type QuoteFollowup, type RunFollowup,
+  type QuoteRequest, type Supplier, type Tool, type Trip,
 } from "./contracts.ts";
 import { rankOptions, type EvaluatedBranch, type OptionFacts } from "./rank.ts";
 
@@ -15,7 +16,7 @@ type Attempt = {
   supplierId: string;
   source: string;
   environment: Environment;
-  operation: Leg | "quote";
+  operation: Leg | "quote" | FollowupOperation;
   pickupId?: string;
   returnId?: string;
   at: string;
@@ -94,21 +95,26 @@ function supplierBudget(supplier: Supplier, signal: AbortSignal) {
   const stopped = new Set<string>();
   let nextStart = 0;
   let quotesStarted = 0;
+  let followupsStarted = 0;
+  const withinBudget = (kind: "catalog" | "quote" | "followup") => kind === "catalog"
+    || (kind === "quote" ? quotesStarted < limits.quoteRequests : followupsStarted < limits.followupRequests);
   return {
     limits,
     stopped,
     get quotesStarted() { return quotesStarted; },
-    async run<T>(id: string, quote: boolean, work: (signal: AbortSignal) => Promise<T>) {
+    get followupsStarted() { return followupsStarted; },
+    async run<T>(id: string, kind: "catalog" | "quote" | "followup", work: (signal: AbortSignal) => Promise<T>) {
       signal.throwIfAborted();
-      if (stopped.has(id) || quote && quotesStarted >= limits.quoteRequests) return undefined;
+      if (stopped.has(id) || !withinBudget(kind)) return undefined;
       const now = performance.now();
       const wait = Math.max(0, nextStart - now);
       nextStart = now + wait + limits.intervalMs;
       if (wait > 0) await delay(wait, undefined, { signal });
-      if (stopped.has(id) || quote && quotesStarted >= limits.quoteRequests) return undefined;
+      if (stopped.has(id) || !withinBudget(kind)) return undefined;
       try {
         return await invoke((signal) => {
-          if (quote) quotesStarted++;
+          if (kind === "quote") quotesStarted++;
+          if (kind === "followup") followupsStarted++;
           return work(signal);
         }, signal);
       } catch (error) {
@@ -120,6 +126,7 @@ function supplierBudget(supplier: Supplier, signal: AbortSignal) {
 }
 
 type Budget = ReturnType<typeof supplierBudget>;
+type FollowupPlan = { source: ProviderTool; option: OptionFacts; followup: QuoteFollowup };
 
 async function discover(supplier: string, tools: ProviderTool[], input: CatalogRequest, legs: Leg[], budget: Budget, signal: AbortSignal) {
   const attempts: Attempt[] = [];
@@ -136,7 +143,7 @@ async function discover(supplier: string, tools: ProviderTool[], input: CatalogR
       let started = false;
       const row = attempt(supplier, tool, legs[0]);
       try {
-        const catalog = await budget.run(tool.id, false, async (signal) => {
+        const catalog = await budget.run(tool.id, "catalog", async (signal) => {
           started = true;
           pages++;
           row.at = new Date().toISOString();
@@ -196,18 +203,21 @@ async function quotePair(
   };
   const attempts: Attempt[] = [];
   const options = new Map<string, OptionFacts>();
+  const plans = new Map<string, FollowupPlan>();
   let outcome: Attempt["outcome"] = "unavailable";
   for (const tool of tools) {
     const row = { ...attempt(supplier.id, tool, "quote"), pickupId: pickup.id, returnId: dropoff.id };
     const adapter = tool.tool;
     if (!adapter) continue;
     try {
-      const quote = await budget.run(tool.id, true, async (signal) => {
+      const read = await budget.run(tool.id, "quote", async (signal) => {
         row.at = new Date().toISOString();
         attempts.push(row);
-        return quoteSchema.parse(await adapter.quote(input, signal));
+        const { followup, ...response } = await adapter.quote(input, signal);
+        return { quote: quoteSchema.parse(response), followup };
       });
-      if (!quote) continue;
+      if (!read) continue;
+      const { quote, followup } = read;
       if (quote.status === "unavailable") {
         row.reason = quote.reason;
       } else if (quote.status === "no_cars") {
@@ -225,7 +235,11 @@ async function quotePair(
             source: { id: tool.id, environment: tool.environment, observedAt, url: offer.sourceUrl },
           };
           const previous = options.get(offer.id);
-          if (!previous || quoteCoverage(option, input) > quoteCoverage(previous, input)) options.set(offer.id, option);
+          if (!previous || quoteCoverage(option, input) > quoteCoverage(previous, input)) {
+            options.set(offer.id, option);
+            if (followup) plans.set(offer.id, { source: tool, option, followup });
+            else plans.delete(offer.id);
+          }
           complete &&= quoteCoverage(option, input) === chargeKeys.length;
         }
         row.outcome = complete ? "complete" : "partial";
@@ -242,9 +256,56 @@ async function quotePair(
     if (signal.aborted) break;
   }
   return {
-    attempts, options: [...options.values()], outcome: attempts.length ? outcome : "untried" as const,
+    attempts, options: [...options.values()], plans: [...plans.values()], outcome: attempts.length ? outcome : "untried" as const,
     reason: attempts.length ? undefined : untriedReason(budget, signal),
   };
+}
+
+async function readSupplementals(
+  supplier: string, plans: FollowupPlan[], budget: Budget, trip: Trip, signal: AbortSignal,
+) {
+  const attempts: Attempt[] = [];
+  const { carClass, minSeats, currency } = trip.preferences;
+  const price = ({ option: { offer } }: FollowupPlan) => offer.supplierEstimateCents
+    ?? (typeof offer.charges.base === "number" ? offer.charges.base : Number.MAX_SAFE_INTEGER);
+  const selected = plans.filter(({ option: { offer } }) => offer.currency === currency && (!carClass || offer.carClass === carClass)
+    && (minSeats === undefined || offer.seats === undefined || offer.seats >= minSeats))
+    .sort((a, b) => price(a) - price(b) || a.option.id.localeCompare(b.option.id))
+    .slice(0, 2);
+  for (const { source, option, followup } of selected) {
+    if (signal.aborted || budget.followupsStarted >= budget.limits.followupRequests) break;
+    const read: RunFollowup = async (operation, work) => {
+      const row = {
+        ...attempt(supplier, source, operation), pickupId: option.pickup.id, returnId: option.return.id,
+      };
+      let started = false;
+      try {
+        const value = await budget.run(source.id, "followup", (signal) => {
+          row.at = new Date().toISOString();
+          attempts.push(row);
+          started = true;
+          return work(signal);
+        });
+        if (value === undefined) return {
+          status: "untried",
+          reason: budget.stopped.has(source.id) ? "Source stopped after an access or rate-limit response."
+            : "Supplier follow-up request budget reached.",
+        };
+        row.outcome = "complete";
+        return { status: "returned", value, observedAt: new Date().toISOString() };
+      } catch (error) {
+        row.reason = failure(error);
+        return { status: started ? "unavailable" : "untried", reason: row.reason };
+      }
+    };
+    try {
+      const supplementalEvidence = await followup(option.offer.id, read);
+      option.offer = offerSchema.parse({ ...option.offer, supplementalEvidence });
+    } catch {
+      // An invalid supplement never replaces the original ordered-pair evidence.
+    }
+  }
+  return attempts;
 }
 
 function untriedReason(budget: Budget, signal: AbortSignal) {
@@ -314,6 +375,7 @@ async function compareSupplier(supplier: Supplier, tools: ProviderTool[], trip: 
     results.push(...batch);
   }
   const options = results.flatMap((result) => result.options);
+  const supplementAttempts = await readSupplementals(supplier.id, results.flatMap((result) => result.plans), budget, trip, signal);
   const pairsChecked = results.filter((result) => result.attempts.length > 0).length;
   const incomplete = !pickups.complete || !returns.complete || truncated || pairsChecked < pairs.length
     || results.some((result) => result.outcome === "partial" || result.outcome === "unavailable");
@@ -325,11 +387,11 @@ async function compareSupplier(supplier: Supplier, tools: ProviderTool[], trip: 
   else status = options.length ? "complete" : "no_cars";
   return {
     options,
-    attempts: [...attempts, ...results.flatMap((result) => result.attempts)],
+    attempts: [...attempts, ...results.flatMap((result) => result.attempts), ...supplementAttempts],
     coverage: {
       supplierId: supplier.id, supplier: supplier.name, status,
       pickupCandidates: pickupBranches.length, returnCandidates: returnBranches.length,
-      pairsPlanned: pairs.length, pairsChecked, quotesAttempted: budget.quotesStarted, truncated, omitted,
+      pairsPlanned: pairs.length, pairsChecked, quotesAttempted: budget.quotesStarted, followupsAttempted: budget.followupsStarted, truncated, omitted,
       limits: budget.limits,
       discovery: {
         pickup: { state: pickups.state, pagesAttempted: pickups.pages },

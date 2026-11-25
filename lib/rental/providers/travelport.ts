@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { SaxesParser } from "saxes";
-import { ToolReadError, type Branch, type QuoteRequest, type Tool } from "../contracts.ts";
+import { ToolReadError, type Branch, type FollowupOperation, type OfferEvidence, type QuoteRequest, type RunFollowup, type Tool } from "../contracts.ts";
 
 export const travelportVendors = { hertz: "ZE", avis: "ZI", enterprise: "ET" } as const;
 type Brand = keyof typeof travelportVendors;
@@ -11,6 +11,8 @@ const soap = "http://schemas.xmlsoap.org/soap/envelope/";
 const vehicle = "http://www.travelport.com/schema/vehicle_v54_0";
 const common = "http://www.travelport.com/schema/common_v54_0";
 const matrixDocs = "https://support.travelport.com/WebHelp/uAPI/Content/Vehicle/Vehicle_Matrix/Vehicle_Matrix.htm";
+const rulesDocs = "https://support.travelport.com/webhelp/uapi/Content/Vehicle/Vehicle_Rules/Vehicle_Rules.htm";
+const detailsDocs = "https://support.travelport.com/webhelp/uapi/Content/Vehicle/Vehicle_Location_Details/Vehicle_Location_Details.htm";
 const maxResponseBytes = 2 * 1024 * 1024;
 const stationType = /^[A-Za-z]{2,32}$/;
 const marketCode = /^[A-Z]{3}$/;
@@ -46,6 +48,8 @@ const children = (node: Element | undefined, name: string, namespace = vehicle) 
   node?.children.filter((child) => child.name === name && child.namespace === namespace) ?? [];
 const child = (node: Element | undefined, name: string, namespace = vehicle) => children(node, name, namespace)[0];
 const cleanLabel = (value: string | undefined) => value?.trim().replace(/\s+/g, " ").slice(0, 160) || undefined;
+const ref = (node: Element) => /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(node.fields.TransactionId ?? "")
+  ? node.fields.TransactionId : undefined;
 function localTime(value: string) {
   const time = value.match(/^(\d{4}-\d\d-\d\dT\d\d:\d\d(?::\d\d)?)(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)?$/)?.[1];
   return time?.padEnd(19, ":00");
@@ -99,12 +103,16 @@ function parseStation(item: Element, vendor: string): Branch | null {
   };
 }
 
+function stationMatches(fields: Record<string, string>, number: string | undefined, station: Station, vendor: string) {
+  const airportTerminalAlias = [fields.LocationType, station.type].sort().join("/") === "Airport/Terminal";
+  return fields.VendorCode === vendor && fields.LocationCode === station.market
+    && number?.replace(/^0+(?=\d)/, "") === station.number
+    && (fields.LocationType === station.type || airportTerminalAlias);
+}
+
 function matchesStation(location: Element | undefined, station: Station, vendor: string) {
-  const actual = location?.fields;
-  const airportTerminalAlias = [actual?.LocationType, station.type].sort().join("/") === "Airport/Terminal";
-  return actual?.ProviderCode === "1G" && actual.VendorCode === vendor && actual.LocationCode === station.market
-    && actual.VendorLocationID?.replace(/^0+(?=\d)/, "") === station.number
-    && (actual.LocationType === station.type || airportTerminalAlias);
+  return location?.fields.ProviderCode === "1G"
+    && stationMatches(location.fields, location.fields.VendorLocationID, station, vendor);
 }
 
 function money(value: string | undefined) {
@@ -115,15 +123,15 @@ function money(value: string | undefined) {
 }
 
 function matrixOffers(reply: Element, input: QuoteRequest, pickup: Element, dropoff: Element | undefined, vendor: string) {
-  const offered = new Map<string, ReturnType<typeof normalizeRate>>();
+  const offered = new Map<string, { offer: NonNullable<ReturnType<typeof normalizeRate>>; vehicle: Element; rate: Element }>();
   for (const vehicle of children(reply, "Vehicle")) {
     if (vehicle.fields.VendorCode !== vendor || !pickup.fields.Key || vehicle.fields.VendorLocationKey !== pickup.fields.Key) continue;
     for (const rate of children(vehicle, "VehicleRate")) {
       const offer = normalizeRate(vehicle, rate, input.currency, pickup, dropoff);
-      if (offer) offered.set(offer.id, offer);
+      if (offer) offered.set(offer.id, { offer, vehicle, rate });
     }
   }
-  return [...offered.values()].filter((offer) => offer !== undefined).slice(0, 30);
+  return [...offered.values()].slice(0, 30);
 }
 
 function normalizeRate(vehicle: Element, rate: Element, requestedCurrency: string, pickup: Element, dropoff?: Element) {
@@ -152,10 +160,174 @@ function normalizeRate(vehicle: Element, rate: Element, requestedCurrency: strin
     carClass: vehicleClass, seats: Number.isInteger(seats) && seats > 0 && seats <= 20 ? seats : undefined,
     currency, charges: { base: base?.currency === currency ? base.cents : null },
     supplierEstimateCents: estimate?.cents,
-    rentalTerms, pickupHours: cleanLabel(pickup.fields.BusinessHours),
-    returnHours: cleanLabel(dropoff?.fields.BusinessHours),
+    rentalTerms, pickupHours: cleanLabel(child(pickup, "BusinessHours")?.text),
+    returnHours: cleanLabel(child(dropoff, "BusinessHours")?.text),
     sourceUrl: matrixDocs,
   };
+}
+
+const summary = (values: (string | undefined)[]) => [...new Set(values.map(cleanLabel).filter((value) => value !== undefined))].slice(0, 12);
+
+function rulesModifiers(vehicle: Element, rate: Element, vendor: string) {
+  const { AcrissVehicleCode, VehicleClass, Category, TransmissionType, AirConditioning, DoorCount } = vehicle.fields;
+  const { RateCode, RateCategory, RatePeriod } = rate.fields;
+  if (!/^[A-Z0-9]{4}$/.test(AcrissVehicleCode ?? "") || !RateCode || RateCode.length > 10
+    || !VehicleClass || !Category || !TransmissionType || !/^(?:true|false|0|1)$/.test(AirConditioning ?? "")) return;
+  if (["CorporateRate", "DiscountNumber", "PromotionalCode", "TourCode"].some((key) =>
+    rate.fields[key] && rate.fields[key] !== "false")) return; // Avoid repricing a contracted or qualified offer as a public rate.
+  const qualifiers = child(rate, "RateHostIndicator")?.fields;
+  const tokens = Object.fromEntries(["InventoryToken", "RateToken"]
+    .flatMap((key) => qualifiers?.[key] ? [[key, qualifiers[key]]] : []));
+  if (Object.values(tokens).some((value) => value.length > 512)) return;
+  return `<v:VehicleSearchModifiers${attrs({
+    ...(RateCategory && { RateCategory }), ...(RatePeriod && { RatePeriod }),
+  })}><v:VehicleModifier${attrs({
+    VehicleClass, Category, TransmissionType, AirConditioning, ...(DoorCount && { DoorCount }),
+  })}/><v:RateModifiers${attrs({ VendorCode: vendor, RateCode })}/>`
+    + (Object.keys(tokens).length ? `<v:RateHostIndicator${attrs(tokens)}/>` : "")
+    + "</v:VehicleSearchModifiers>";
+}
+
+function ruleCharges(reply: Element, rate: Element, currency: string) {
+  const items = [...children(reply, "VehicleCharge"), ...children(rate, "VehicleCharge")];
+  const unique = new Map<string, NonNullable<OfferEvidence["lineItems"]>[number]>();
+  const inclusions = { IncludedInBase: "base", IncludedInTotal: "total", NotIncluded: "not_included" } as const;
+  let omitted = false;
+  for (const item of items) {
+    const category = cleanLabel(item.fields.Category);
+    const amounts = children(item, "Amount");
+    const percents = children(item, "Percentage");
+    const value = money(amounts[0]?.text.trim());
+    const percent = percents[0]?.text.trim();
+    const percentage = /^\d{1,4}(?:\.\d{1,6})?$/.test(percent ?? "") ? Number(percent) : undefined;
+    if (!category || amounts.length > 1 || percents.length > 1
+      || amounts.length && value?.currency !== currency
+      || percents.length && (percentage === undefined || percentage > 1000)) {
+      omitted = true;
+      continue;
+    }
+    const entry = {
+      category, name: cleanLabel(item.fields.Name), basis: cleanLabel(item.fields.Type),
+      amountCents: value?.cents, percentage,
+      inclusion: Object.hasOwn(inclusions, item.fields.IncludedInRate)
+        ? inclusions[item.fields.IncludedInRate as keyof typeof inclusions] : "unknown" as const,
+    };
+    unique.set(JSON.stringify(entry), entry);
+  }
+  return { lineItems: [...unique.values()].slice(0, 20), omitted: omitted || unique.size > 20 };
+}
+
+function readRules(reply: Element, selected: ReturnType<typeof matrixOffers>[number], vendor: string, pickup: Station, dropoff: Station, same: boolean) {
+  const cars = children(reply, "Vehicle");
+  const rates = children(cars[0], "VehicleRate");
+  const car = cars[0];
+  const rate = rates[0];
+  const chosen = selected.rate.fields;
+  if (cars.length !== 1 || rates.length !== 1 || car.fields.VendorCode !== vendor
+    || car.fields.AcrissVehicleCode !== selected.vehicle.fields.AcrissVehicleCode
+    || car.fields.VehicleClass !== selected.vehicle.fields.VehicleClass
+    || rate.fields.RateCode !== chosen.RateCode
+    || (["RateCategory", "RatePeriod"] as const).some((key) => chosen[key] && rate.fields[key] !== chosen[key])
+    || !same && (car.fields.ReturnAtPickup === "true" || car.fields.ReturnAtPickup === "1")) {
+    throw new ToolReadError("Travelport rules did not match the selected supplier, vehicle and rate.");
+  }
+  const starts = children(reply, "PickupLocationInformation");
+  const ends = children(reply, "ReturnLocationInformation");
+  if (starts.length > 1 || ends.length > 1
+    || starts.some((location) => !stationMatches(location.fields, location.fields.LocationNumber, pickup, vendor))
+    || ends.some((location) => !stationMatches(location.fields, location.fields.LocationNumber, dropoff, vendor))) {
+    throw new ToolReadError("Travelport rules returned conflicting or ambiguous station identifiers.");
+  }
+  // An estimate or matching rates cannot prove itemized fees or renter eligibility.
+  // Location echoes in VehicleRulesRsp are often absent for 1G, and dates are not echoed.
+  const supplierRates = children(rate, "SupplierRate");
+  if (supplierRates.length > 1) throw new ToolReadError("Travelport rules returned ambiguous supplier amounts.");
+  const raw = supplierRates[0]?.fields ?? {};
+  const entries = {
+    baseCents: raw.BaseRate,
+    estimateCents: raw.EstimatedTotalAmount,
+    mandatoryCents: raw.MandatoryChargeTotal,
+    dropOffCents: raw.DropOffCharge,
+  };
+  const amounts: NonNullable<OfferEvidence["amounts"]> = {};
+  for (const key of Object.keys(entries) as (keyof typeof entries)[]) {
+    if (entries[key] === undefined) continue;
+    const amount = money(entries[key]);
+    if (!amount || amount.currency !== selected.offer.currency) {
+      throw new ToolReadError("Travelport rules amounts were invalid or in a different currency.");
+    }
+    amounts[key] = amount.cents;
+  }
+  if ((amounts.baseCents !== undefined && selected.offer.charges.base != null && amounts.baseCents !== selected.offer.charges.base)
+    || (amounts.estimateCents !== undefined && selected.offer.supplierEstimateCents !== undefined && amounts.estimateCents !== selected.offer.supplierEstimateCents)) {
+    throw new ToolReadError("Travelport rules amounts differed from the Matrix quote.");
+  }
+  if (amounts.estimateCents !== undefined && Object.values(amounts).some((amount) => amount > amounts.estimateCents!)) {
+    throw new ToolReadError("Travelport rules amounts exceeded the reported rental estimate.");
+  }
+  const details = summary([
+    ...children(rate, "VehicleRateDescription").flatMap((item) => children(item, "Text").map((line) => line.text)),
+    ...children(reply, "OperationTime").map((line) => line.text),
+  ]);
+  const warnings = children(reply, "ResponseMessage", common).some(({ fields }) => fields.Type === "Warning");
+  if (warnings) return {
+    status: "informational" as const, providerReference: ref(reply),
+    summary: "Travelport returned a warning with the rate rules. Rule text and amounts were withheld.",
+  };
+  const matched = starts.length === 1 && (same || ends.length === 1);
+  const { lineItems, omitted } = ruleCharges(reply, rate, selected.offer.currency);
+  if (omitted) details.unshift("Some charge lines were invalid or exceeded the display limit.");
+  return {
+    status: matched ? "matched" as const : "informational" as const,
+    providerReference: ref(reply), details: details.slice(0, 12), amounts: Object.keys(amounts).length ? amounts : undefined,
+    lineItems: lineItems.length ? lineItems : undefined,
+    summary: matched ? "Rules matched the station identifiers and selected rate. Trip times and complete renter charges remain unverified."
+      : "Rules matched the selected vehicle and rate. The response omitted exact station identifiers or rental times.",
+  };
+}
+
+function readLocationDetails(reply: Element, vendor: string) {
+  const vendors = children(reply, "VendorInfo");
+  const locations = children(reply, "LocationInfo");
+  if (vendors.length !== 1 || vendors[0].fields.Code !== vendor || locations.length !== 1
+    || !cleanLabel(locations[0].fields.Name)) {
+    throw new ToolReadError("Travelport did not return one usable counter record for this supplier.");
+  }
+  const warnings = children(reply, "ResponseMessage", common).filter(({ fields }) => fields.Type === "Warning");
+  if (warnings.some(({ text }) => !/^the requested modifier - ReturnDateTime is ignored for this provider\.?$/i.test(text.trim()))) {
+    return {
+      status: "informational" as const, providerReference: ref(reply),
+      summary: "Travelport returned a warning for this counter request. Counter details were withheld.",
+    };
+  }
+  const counter = locations[0];
+  const details = summary([
+    counter.fields.Name,
+    counter.fields.CounterLocation,
+    ...children(counter, "LocationAddress", common).slice(0, 1).map((address) =>
+      ["Street", "City", "PostalCode", "Country"].map((part) => child(address, part, common)?.text).filter(Boolean).join(", ")),
+    ...children(counter, "OperationTime").map((line) => line.text),
+    child(counter, "ShuttleInfo")?.text,
+    ...children(child(reply, "VehiclePolicy"), "VehicleDisclaimer").flatMap((line) =>
+      line.fields.Type === "Vehicles" ? [] : [line.fields.Description, line.text]),
+  ]);
+  return {
+    status: "informational" as const, providerReference: ref(reply), details,
+    summary: "Counter details returned. The response does not echo the requested station ID or date.",
+  };
+}
+
+type EvidenceData = Omit<OfferEvidence, "operation" | "sourceUrl" | "observedAt">;
+async function supplemental(
+  read: RunFollowup, operation: FollowupOperation, sourceUrl: string, work: (signal: AbortSignal) => Promise<EvidenceData>,
+): Promise<OfferEvidence> {
+  const result = await read(operation, work);
+  return result.status === "returned" ? { operation, sourceUrl, observedAt: result.observedAt, ...result.value }
+    : { operation, sourceUrl, status: result.status, summary: result.reason };
+}
+
+function nextWallDate(time: string) {
+  return new Date(Date.parse(`${time}Z`) + 86_400_000).toISOString().slice(0, 19);
 }
 
 async function responseText(response: Response) {
@@ -181,7 +353,7 @@ export function travelportTool(brand: Brand, settings: TravelportSettings, accou
   const endpoint = `https://${settings.region}.universal-api.travelport.com/B2BGateway/connect/uAPI/VehicleService`;
   const markets = new Map(Object.entries(settings.markets).map(([area, codes]) => [area.toLowerCase(), codes]));
 
-  async function request(operation: "VehicleLocationReq" | "VehicleSearchAvailabilityReq", parameters: Record<string, string>, content: string, signal: AbortSignal) {
+  async function request(operation: "VehicleLocationReq" | "VehicleSearchAvailabilityReq" | "VehicleRulesReq" | "VehicleLocationDetailReq", parameters: Record<string, string>, content: string, signal: AbortSignal) {
     const { username, password, targetBranch } = account;
     if (!username || !password || !targetBranch) {
       throw new ToolReadError("Travelport requires a provisioned 1G Vehicle account and target branch.", true);
@@ -245,27 +417,60 @@ export function travelportTool(brand: Brand, settings: TravelportSettings, accou
       }, `<v:VehicleDateLocation${attrs({ PickupDateTime: pickupTime, ReturnDateTime: returnTime })}>`
         + location("Pickup", pickup) + (same ? "" : location("Return", dropoff))
         + `</v:VehicleDateLocation><v:VehicleSearchModifiers${attrs({ PreferredCurrency: input.currency })}/>`, signal);
-      const dates = child(reply, "VehicleDateLocation");
-      const stations = children(dates, "VendorLocation");
-      const returnedPickup = stations.find(({ fields }) => fields.Type === "Pickup");
-      const returnedDropoff = stations.find(({ fields }) => fields.Type === "Return");
-      if (!matchesStation(returnedPickup, pickup, vendor)
+      const dates = children(reply, "VehicleDateLocation");
+      const stations = children(dates[0], "VendorLocation");
+      const pickups = stations.filter(({ fields }) => fields.Type === "Pickup");
+      const dropoffs = stations.filter(({ fields }) => fields.Type === "Return");
+      const [returnedPickup] = pickups;
+      const [returnedDropoff] = dropoffs;
+      if (dates.length !== 1 || pickups.length !== 1 || dropoffs.length > 1
+        || !matchesStation(returnedPickup, pickup, vendor)
         || (!same || returnedDropoff) && !matchesStation(returnedDropoff, dropoff, vendor)
         || !same && reply.fields.ReturnAtPickup === "true"
-        || !sameTime(dates?.fields.PickupDateTime, input.pickupAt)
-        || !sameTime(dates?.fields.ReturnDateTime, input.returnAt)) {
+        || !sameTime(dates[0]?.fields.PickupDateTime, input.pickupAt)
+        || !sameTime(dates[0]?.fields.ReturnDateTime, input.returnAt)) {
         return { status: "unavailable", reason: "Travelport did not confirm the exact ordered stations and rental times." };
       }
-      const offers = matrixOffers(reply, input, returnedPickup!, returnedDropoff, vendor);
-      if (!offers.length) {
+      const rates = matrixOffers(reply, input, returnedPickup!, returnedDropoff, vendor);
+      if (!rates.length) {
         return { status: "unavailable", reason: "Travelport did not return a matching, priced matrix offer. Inventory remains unverified." };
       }
       return {
-        status: "available", offers: offers.map((offer) => ({
-          ...offer, providerReference: /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(reply.fields.TransactionId ?? "")
-            ? reply.fields.TransactionId : undefined,
-        })),
+        status: "available", offers: rates.map(({ offer }) => ({ ...offer, providerReference: ref(reply) })),
         partialReason: "Travelport matrix estimates are limited to Inside Availability. Mandatory fees and renter terms require separate verification.",
+        async followup(offerId, read) {
+          const selected = rates.find(({ offer }) => offer.id === offerId);
+          if (!selected) return [];
+          const pickupNumber = returnedPickup!.fields.VendorLocationID;
+          const returnNumber = returnedDropoff?.fields.VendorLocationID ?? pickupNumber;
+          const stationFields = (station: Station, number: string, role: "Pickup" | "Return") => ({
+            [`${role}Location`]: station.market, [`${role}LocationType`]: station.type, [`${role}LocationNumber`]: number,
+          });
+          const modifiers = rulesModifiers(selected.vehicle, selected.rate, vendor);
+          const rules = modifiers ? await supplemental(read, "rate_rules", rulesDocs, async (signal) => {
+            const lookup = `<v:VehicleRulesLookup><v:VehicleDateLocation${attrs({
+              PickupDateTime: pickupTime, ReturnDateTime: returnTime,
+              ...stationFields(pickup, pickupNumber, "Pickup"),
+              ...(!same && stationFields(dropoff, returnNumber, "Return")),
+            })}><v:VendorLocation${attrs({
+              ProviderCode: "1G", VendorCode: vendor, VendorLocationID: pickupNumber, Key: returnedPickup!.fields.Key,
+            })}/></v:VehicleDateLocation>${modifiers}</v:VehicleRulesLookup>`;
+            return readRules(await request("VehicleRulesReq", {}, lookup, signal), selected, vendor, pickup, dropoff, same);
+          }) : {
+            operation: "rate_rules" as const, sourceUrl: rulesDocs, status: "untried" as const,
+            summary: "Matrix rate identifiers or vehicle modifiers were insufficient for an exact public-rate rules lookup.",
+          };
+          const details = (operation: "pickup_details" | "return_details", station: Station, number: string, time: string) =>
+            supplemental(read, operation, detailsDocs, async (signal) => {
+              const xml = `<v:Vendor Code="${vendor}"/><v:VehicleDateLocation${attrs({
+                PickupDateTime: time, ReturnDateTime: nextWallDate(time), ...stationFields(station, number, "Pickup"),
+              })}/>`;
+              return readLocationDetails(await request("VehicleLocationDetailReq", {}, xml, signal), vendor);
+            });
+          const pickupDetails = await details("pickup_details", pickup, pickupNumber, pickupTime);
+          const returnDetails = await details("return_details", dropoff, returnNumber, returnTime);
+          return [rules, pickupDetails, returnDetails];
+        },
       };
     },
   };
