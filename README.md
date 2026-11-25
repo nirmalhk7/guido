@@ -6,8 +6,9 @@ recommendation. Rental searches stop before booking.
 
 ## Standalone branch comparison
 
-Compare ordered pickup and return branch pairs from the browser or CLI with
-configurable Playwright or tool sources. Try the offline San Mateo, Belmont,
+Compare ordered pickup and return branch pairs for Hertz, Avis, and Enterprise
+from the browser or CLI. Configure Travelport, an authorized Playwright feed,
+or a tool module. Try the offline San Mateo, Belmont,
 and SFO scenario without credentials.
 
 ```sh

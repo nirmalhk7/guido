@@ -9,7 +9,7 @@ Use Node.js 24 or later. Dependency installation requires network access. Sample
 searches run offline after installation.
 
 ```sh
-npm ci
+npm ci --omit=optional
 npm --prefix frontend ci
 npm --prefix frontend run build
 npm run rental:serve
@@ -43,8 +43,12 @@ search requests to the standalone process on port 3000.
 ```sh
 docker build -t guido-rental .
 docker run --rm -p 127.0.0.1:3000:3000 guido-rental
-docker run --rm guido-rental node bin/rental-search.ts --fixture examples/rental-trip.json
+docker run --rm --network none guido-rental node bin/rental-search.ts --fixture examples/rental-trip.json
 ```
+
+The default image runs the CLI, HTTP API, and Travelport adapter without
+Chromium. Build `docker build --target browser -t guido-rental-browser .` if
+you configure a Playwright source.
 
 If your build network uses a custom certificate authority, pass its PEM with
 `docker build --secret id=guido_build_ca,src=/path/to/ca.pem -t guido-rental .`.
@@ -69,9 +73,11 @@ by `{ supplier, branchId }`, or `accessByBranch` to supply your own travel
 estimates. Each estimate has `supplier`, `branchId`, optional `minutes`,
 optional `costCents`, and optional `note`. Use the requested currency.
 Pickup estimates go from the origin to the branch. Return estimates go from
-the branch to the destination. With a precise endpoint, Guido uses your
-branch estimates and reports any missing cost or time as unknown. When both
-coordinates are available it also calculates straight-line distance.
+the branch to the destination. If you return to the same address, include an
+explicit `destination` with its own estimates. Omitting the destination
+reuses the origin's location only. When a cost or time is unavailable, Guido
+marks that value unknown. With coordinates for both points it also calculates
+straight-line distance.
 
 Preferences include `priority` (`total_cost`, `pickup_access`, or
 `return_access`), `oneWay` (defaults to true), `pickupKind` and `returnKind`
@@ -83,41 +89,79 @@ The API and CLI also accept individual branch and access overrides.
 
 ## Configure quote sources
 
-Playwright is the built-in live adapter. Install Chromium with
-`npx playwright install --with-deps chromium`, or use an installed Chromium
-by setting `GUIDO_CHROMIUM_EXECUTABLE`. Select the providers and tools by
-setting `GUIDO_RENTAL_CONFIG=/path/to/providers.json` or passing the CLI
-`--config` option.
+Live searches report Hertz, Avis, and Enterprise separately. Set
+`GUIDO_RENTAL_CONFIG=/path/to/providers.json` or use the CLI's `--config`
+option. IDs are `hertz`, `avis`, and `enterprise`. Each supplier may
+have an ordered list of sources and a `limits` object. Guido shows suppliers
+without configured sources as unverified. The offline sample is selected
+explicitly.
 
-```json
-[
-  {
-    "id": "rental-company",
-    "name": "Rental Company",
-    "sources": [
-      {
-        "id": "public-quote-feed",
-        "kind": "playwright",
-        "catalogUrl": "https://supplier.example/catalog",
-        "quoteUrl": "https://supplier.example/quotes"
-      },
-      {
-        "id": "partner-shopping-api",
-        "kind": "module",
-        "file": "./partner-shopping.mjs",
-        "settings": { "region": "US" }
-      }
-    ]
-  }
-]
-```
+### Travelport Universal API
 
-The domains and module above are examples. Supply authorized shopping
-endpoints or a tool module for the supplier you want. With no provider
-configuration, a live search reports Playwright as unavailable. Only an
-explicit sample request uses the offline fixture.
+The [sample configuration](../examples/rental-providers.travelport.json)
+sets up the Travelport adapter for all three brands. Use a Travelport market
+code as the travel area or configure a coarse name with one or more airport
+or city codes. For example, the Bay Area configuration starts at SFO, OAK,
+and SJC. The adapter queries each configured market on each leg's local date
+and deduplicates the returned station IDs. A station ID includes the provider,
+vendor, market, station type, and vendor location number. A location number
+alone can identify several different stations.
+
+Travelport Universal API uses SOAP even for read-only shopping. Guido sends
+`VehicleLocationReq` and exact-station `VehicleSearchAvailabilityReq`
+to the official regional `VehicleService` endpoint. Standard search is
+limited to the configured markets. Vehicle Matrix estimates cover suppliers
+that have Inside Availability on the provisioned connection. Guido requires
+the quote response to confirm the station selections and dates. It shows
+Travelport's estimated rental total, station hours, and vehicle terms when
+provided. Its fee breakdown stays provisional pending verified mandatory
+charges and renter eligibility.
+
+Live verification requires all of the following.
+
+- A provisioned Travelport Universal API SOAP/XML production account and
+  Target Branch/Work Area Branch enabled for Galileo `1G`, Vehicle v54, and
+  your region. Configure `GUIDO_TRAVELPORT_USERNAME`,
+  `GUIDO_TRAVELPORT_PASSWORD`, and `GUIDO_TRAVELPORT_TARGET_BRANCH` from
+  the deployment's secret store.
+- Read access to Vehicle Location List and exact-pair Vehicle Matrix.
+  Confirm the account's inventory and Inside Availability support for Hertz
+  `ZE`, Avis `ZI`, and Enterprise `ET` in each target market.
+- Approved Vehicle Rules and Location Details access for completing the
+  integration's charge and policy fields. Confirm exact stations, local
+  hours, cancellation, mileage, driver eligibility, additional drivers,
+  and mandatory charges on sample authorized quotes.
+- The operator's account limits for request spacing, volume and concurrency.
+  Configure the search budget to match those limits.
+
+The XML conformance tests exercise the documented request and response
+shapes with synthetic data. Supplier-specific live inventory, fees, and
+one-way results still need the provisioned account.
+
+[Travelport credentials](https://support.travelport.com/webhelp/uapi/Content/Getting_Started/Easy_Overview/Getting_Credentials.htm) ·
+[Vehicle location list](https://support.travelport.com/webhelp/uapi/Content/Vehicle/Vehicle_Location/Vehicle_Location_List.htm) ·
+[Vehicle Matrix](https://support.travelport.com/WebHelp/uAPI/Content/Vehicle/Vehicle_Matrix/Vehicle_Matrix.htm) ·
+[Vehicle Rules](https://support.travelport.com/webhelp/uapi/Content/Vehicle/Vehicle_Rules/Vehicle_Rules.htm) ·
+[Location details](https://support.travelport.com/webhelp/uapi/Content/Vehicle/Vehicle_Location_Details/Vehicle_Location_Details.htm)
+
+Other documented options include the Avis Budget Group developer program,
+which requires its Cars API application subscription, OAuth credentials, and
+separate production access. Hertz and Enterprise identify agency GDS
+channels. Use an authorized agency or distribution shopping entitlement to
+verify station IDs, available brands, quotes, and rate rules for those
+channels. The separate Hertz ChatGPT connector can verify public location
+lookup. Its vehicle tool starts checkout, which is outside the search flow.
+
+[Avis Budget Group access](https://developer.avis.com/getting-started) ·
+[Hertz travel advisors](https://www.hertz.com/us/en/partners/travel) ·
+[Enterprise GDS guides](https://ta.enterprise.com/)
 
 ### Playwright source
+
+For an authorized browser feed, use a source with `kind: "playwright"`,
+`id`, `catalogUrl`, and `quoteUrl`. Install the optional browser package
+with `npm ci` and its Chromium binary with `npx playwright install chromium`.
+Set `GUIDO_CHROMIUM_EXECUTABLE` to use system Chromium.
 
 The adapter opens an operator-configured public HTTPS endpoint for each
 catalog or quote request. Loopback HTTP is supported for local tests. Each
@@ -128,8 +172,9 @@ only GET requests to the configured read-only URLs. Redirects, sign-in
 walls, and access challenges yield unavailable results. Browser integrations
 must have permission for automated reading of the configured URLs.
 
-- The catalog gets `area` and `currency`. It returns `{ branches }` and may
-  include `partialReason`. A branch has `id`, `name`, and `kind`, with
+- The catalog gets `area`, `currency`, and the opaque `cursor` on follow-up
+  requests. It returns `{ branches }` and may include `nextCursor` or
+  `partialReason`. A branch has `id`, `name`, and `kind`, with
   optional `address`, `coordinates`, `centerToPickup`, `returnToCenter`,
   `pickupNote`, and `returnNote`. The two center estimates have
   `minutes`, `costCents`, and an optional `note`. IDs must identify the
@@ -141,6 +186,8 @@ must have permission for automated reading of the configured URLs.
   applies to this exact pair and trip only.
 - An offer has `id`, `vehicle`, `carClass`, `currency`, and `charges`.
   Include `seats`, `cancellation`, and supplier `quotedAt` if available.
+  Use `supplierEstimateCents` for an estimate with unresolved mandatory
+  charges. This field is displayed separately from the verified total.
   Use `sourceUrl` for public evidence without secrets or traveler details.
   Playwright uses same-origin evidence URLs and strips query and fragment.
 - Charge keys are `base`, `taxes`, `airport`, `oneWay`, `youngDriver`,
@@ -154,9 +201,11 @@ must have permission for automated reading of the configured URLs.
 
 ### Tool modules
 
-A trusted local module exports `createTool(settings)`, returning async
-`listBranches(input, signal)` and `quote(input, signal)`, with optional
-`close()`. Both return the structures above and should honor the abort
+For a source with `kind: "module"`, set its `id`, `file`, and optional
+`settings`. A trusted local module exports `createTool(settings)`, returning
+async `listBranches(input, signal)` and `quote(input, signal)`, with optional
+`close()`. Set `catalogByDate: true` to receive `at` and query each leg's date
+separately. Both return the structures above and should honor the abort
 signal. `settings` is the JSON object from the chosen source. Use module
 configuration for optional credentialed shopping tools and read-only public
 pages with a different shape. Keep credentials in the module's environment.
@@ -172,14 +221,26 @@ represent different rate plans or vehicles.
 
 ## Read the result
 
-Guido orders up to six candidate branches per supplier and leg by travel
-minutes, straight-line distance, then branch ID, preserving both branch
-types when available. Each ordered pickup × return combination gets its
-own quote, including same-branch and reverse pairs. With one-way disabled,
-only same-branch combinations are eligible for search. The quote criteria
-stay constant across pairs. The audit shows planned pairs, outcomes,
-combinations untried because of the search deadline, and branches omitted
-at the limit. Catalog and quote attempts have separate timestamps.
+By default, Guido selects up to six branches per supplier and leg using
+travel time, distance and station ID. It represents airport and neighborhood
+stations when available. Each ordered pickup × return combination gets its
+own request, including same-branch and reverse pairs. With one-way disabled,
+only same-branch combinations are eligible. Trip criteria stay constant.
+
+Default limits per supplier and search are six catalog pages per leg,
+36 quote requests including fallbacks, three concurrent pair operations,
+an eight-second operation timeout, and a 35-second search deadline. Tune
+`branchesPerLeg`, `catalogPagesPerLeg`, `quoteRequests`, and `intervalMs`
+in the supplier's `limits` object. Travelport starts operations at least
+750 ms apart within each supplier search by default. The operator is
+responsible for account-wide limits across suppliers, searches, and process
+replicas.
+
+The audit includes completed, partial, unavailable and untried results,
+catalog continuation limits, and omitted stations. Its attempt count
+includes only adapter calls that started. A deadline or cancellation leaves
+queued pairs untried. Coverage applies to the selected markets, returned
+pages, and request budget.
 
 A recommended offer has a complete mandatory rental price, both branch
 access cost estimates, and enough information to meet the selected criteria.

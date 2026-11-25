@@ -1,0 +1,14 @@
+[
+  {
+    "id": "hertz",
+    "sources": [{ "id": "travelport", "kind": "travelport", "region": "americas", "markets": { "Bay Area": ["SFO", "OAK", "SJC"] } }]
+  },
+  {
+    "id": "avis",
+    "sources": [{ "id": "travelport", "kind": "travelport", "region": "americas", "markets": { "Bay Area": ["SFO", "OAK", "SJC"] } }]
+  },
+  {
+    "id": "enterprise",
+    "sources": [{ "id": "travelport", "kind": "travelport", "region": "americas", "markets": { "Bay Area": ["SFO", "OAK", "SJC"] } }]
+  }
+]
