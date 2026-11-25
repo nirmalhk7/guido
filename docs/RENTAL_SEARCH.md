@@ -107,41 +107,86 @@ and deduplicates the returned station IDs. A station ID includes the provider,
 vendor, market, station type, and vendor location number. A location number
 alone can identify several different stations.
 
-Travelport Universal API uses SOAP even for read-only shopping. Guido sends
-`VehicleLocationReq` and exact-station `VehicleSearchAvailabilityReq`
-to the official regional `VehicleService` endpoint. Standard search is
-limited to the configured markets. Vehicle Matrix estimates cover suppliers
-that have Inside Availability on the provisioned connection. Guido requires
-the quote response to confirm the station selections and dates. It shows
-Travelport's estimated rental total, station hours, and vehicle terms when
-provided. Its fee breakdown stays provisional pending verified mandatory
-charges and renter eligibility.
+Travelport Universal API uses SOAP for shopping. Guido sends
+`VehicleLocationReq` and exact-station `VehicleSearchAvailabilityReq` to the
+official regional `VehicleService` endpoint. Vehicle Matrix estimates cover
+suppliers with Inside Availability on the provisioned connection. Guido
+checks the returned supplier, station IDs, and rental times before retaining
+a Matrix offer.
 
-Live verification requires all of the following.
+After attempting the selected ordered pairs, Guido checks up to two of the
+lowest reported estimates per supplier. The follow-up requests use the same
+search deadline and supplier pacing as the primary search. The default is
+six extra operations, configurable with `limits.followupRequests`
+(`0` disables them).
 
-- A provisioned Travelport Universal API SOAP/XML production account and
-  Target Branch/Work Area Branch enabled for Galileo `1G`, Vehicle v54, and
-  your region. Configure `GUIDO_TRAVELPORT_USERNAME`,
+- **Vehicle Rules** uses the unbooked `VehicleRulesLookup` with the selected
+  rate code, explicit vehicle modifiers, the ordered station identifiers,
+  and any rate tokens from the Matrix reply. Guido leaves these requests
+  untried when the Matrix omits selectors or the rate carries a qualifier
+  such as a corporate or promotional code. Matched replies can show charge
+  lines, inclusion indicators, drop-off amounts, and policy text.
+- **Location Details** requests each counter independently using the exact
+  station number and that leg's local date. The schema requires an end time,
+  so the counter lookup supplies the following local day. The rental quote
+  keeps its original dates. The reply can show addresses, counter hours,
+  shuttle information and renter policies. It does not echo station IDs or
+  dates, so Guido shows these as counter information and keeps Matrix hours
+  separate.
+- A blocked or throttled source stops further requests for that supplier
+  during the search. Failures or an expired budget leave the original
+  Matrix quote visible. The audit counts every follow-up that started
+  separately from primary pairs.
+
+**Ranking boundary.** The 1G Vehicle Rules sample omits station identifiers
+and the v54 response has no rental-time echo. The schema's primary-driver-age
+modifier applies to Worldspan (`1P`). Rules may report a mandatory-charge
+total and individual lines with distinct inclusion and frequency values.
+Those fields alone do not establish which mandatory or driver charges apply
+to this exact traveler and itinerary. Guido shows matching amounts and
+policies as evidence and keeps Travelport estimates provisional. Confirming
+an all-in price also requires directed branch-access costs.
+
+### Verify authorized live access
+
+- Provision a Travelport Universal API SOAP/XML production account and
+  Target Branch/Work Area Branch for Galileo `1G`, Vehicle v54 and your
+  region. Configure `GUIDO_TRAVELPORT_USERNAME`,
   `GUIDO_TRAVELPORT_PASSWORD`, and `GUIDO_TRAVELPORT_TARGET_BRANCH` from
   the deployment's secret store.
-- Read access to Vehicle Location List and exact-pair Vehicle Matrix.
-  Confirm the account's inventory and Inside Availability support for Hertz
-  `ZE`, Avis `ZI`, and Enterprise `ET` in each target market.
-- Approved Vehicle Rules and Location Details access for completing the
-  integration's charge and policy fields. Confirm exact stations, local
-  hours, cancellation, mileage, driver eligibility, additional drivers,
-  and mandatory charges on sample authorized quotes.
-- The operator's account limits for request spacing, volume and concurrency.
-  Configure the search budget to match those limits.
+- Confirm read access to Vehicle Location List, exact-pair Vehicle Matrix,
+  Vehicle Rules, and Location Details. Verify Inside Availability separately
+  for Hertz `ZE`, Avis `ZI`, and Enterprise `ET` in each target market.
+- For each vendor, use a synthetic future itinerary and two published
+  stations. Verify discovery, exact same-station quotes, both directions of
+  one-way quotes, returned identifiers and codes, and access or rate-limit
+  behavior. Check whether each Matrix reply supplies the required public-rate
+  selectors and whether rules preserve the selected rate and each station.
+- Reconcile exact mandatory charges, drop fees, driver eligibility and fees,
+  cancellation, and each leg's hours against an authorized supplier quote
+  for the same criteria. Where 1G supplies only listings or estimates, an
+  authorized rate source with traveler-specific pricing and itemized
+  mandatory charges is required before enabling ranked totals. Configure
+  Guido's request caps and pacing to match the account limits.
 
-The XML conformance tests exercise the documented request and response
-shapes with synthetic data. Supplier-specific live inventory, fees, and
-one-way results still need the provisioned account.
+### Offline schema conformance
 
+The synthetic fixtures can validate their actual SOAP requests and responses
+against the official release 25.2.4.0024 Vehicle v54 archive. The verified
+archive SHA-256 is
+`3f41fd78fc64b9793b931b09920aea5d790ed677b67cf20a18e266752c9cf7a0`.
+Download the linked release, extract it, and set
+`GUIDO_TRAVELPORT_V54_SCHEMA_DIR` to the directory containing
+`vehicle_v54_0` and `common_v54_0`. With Python and lxml installed, run
+`node --test test/rental-travelport-followups.test.mjs`. The normal suite
+runs the synthetic scenarios without the external schema files.
+
+[Official schema downloads](https://support.travelport.com/webhelp/uapi/content/Getting_Started/Universal_API_Schemas_and_WSDLs.htm) ·
 [Travelport credentials](https://support.travelport.com/webhelp/uapi/Content/Getting_Started/Easy_Overview/Getting_Credentials.htm) ·
 [Vehicle location list](https://support.travelport.com/webhelp/uapi/Content/Vehicle/Vehicle_Location/Vehicle_Location_List.htm) ·
 [Vehicle Matrix](https://support.travelport.com/WebHelp/uAPI/Content/Vehicle/Vehicle_Matrix/Vehicle_Matrix.htm) ·
 [Vehicle Rules](https://support.travelport.com/webhelp/uapi/Content/Vehicle/Vehicle_Rules/Vehicle_Rules.htm) ·
+[Galileo rules sample](https://support.travelport.com/webhelp/uapi/Content/SampleWeb/XMLFiles/1G_Air_Vehicle_Hotel/VehicleRules-1G.htm) ·
 [Location details](https://support.travelport.com/webhelp/uapi/Content/Vehicle/Vehicle_Location_Details/Vehicle_Location_Details.htm)
 
 Other documented options include the Avis Budget Group developer program,
