@@ -4,6 +4,20 @@ Guido is an email-based rental car shopping assistant. It detects trips that
 need a rental, compares options from Hertz, Avis, and Enterprise, and drafts a
 recommendation. Rental searches stop before booking.
 
+## Standalone branch comparison
+
+Compare ordered pickup and return branch pairs from the browser or CLI with
+configurable Playwright or tool sources. Try the offline San Mateo, Belmont,
+and SFO scenario without credentials.
+
+```sh
+npm ci
+npm run rental:search -- --fixture examples/rental-trip.json
+```
+
+See the [standalone setup](docs/RENTAL_SEARCH.md) for the browser, HTTP API,
+live provider configuration, and local container.
+
 ## How a request flows
 
 1. AgentMail delivers incoming inbox messages to a webhook. A scheduled Gmail

@@ -5,12 +5,16 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "rental:search": "node bin/rental-search.ts",
+    "rental:serve": "node bin/rental-server.ts",
+    "test:browser": "GUIDO_TEST_BROWSER=1 node --test test/rental-browser.test.mjs"
   },
   "engines": {
     "node": ">=24"
   },
   "dependencies": {
+    "playwright": "1.65.1",
     "singlestore-nodejs": "1.0.1",
     "zod": "4.6.7"
   },

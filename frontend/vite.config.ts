@@ -15,6 +15,7 @@ export default defineConfig({
     },
   },
   server: {
+    proxy: { "/api/rental-search": "http://127.0.0.1:3000" },
     // Allow reading ../contracts during development.
     fs: { allow: [here("..")] },
   },
